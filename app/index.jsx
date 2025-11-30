@@ -1,8 +1,5 @@
-import { Text, View } from "react-native";
-import OnBoarding from "./(OnBoarding)/OnBoarding1";
+import { Redirect } from 'expo-router'
 
 export default function Index() {
-  return (
-    <OnBoarding />
-  );
+  return <Redirect href="/(home)/Dashboard" />
 }
