@@ -1,7 +1,8 @@
 import { Slot, usePathname } from "expo-router";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import { ThemeProvider, useTheme } from '../context/useTheme';
 import { View } from 'react-native';
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { AuthProvider } from '../context/useAuth';
+import { ThemeProvider, useTheme } from '../context/useTheme';
 import '../global.css';
 
 function ThemedSlot() {
@@ -25,7 +26,9 @@ export default function RootLayout() {
   return(
     <SafeAreaProvider>
       <ThemeProvider>
-        <ThemedSlot />
+        <AuthProvider>
+          <ThemedSlot />
+        </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   )

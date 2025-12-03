@@ -1,46 +1,49 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { doc, getDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../../context/useAuth';
 import { useTheme } from '../../../context/useTheme';
+import { db } from '../../../firebaseConfig';
 
 const attendance = () => {
   const router = useRouter();
   const { theme } = useTheme();
-  const [selectedMonth, setSelectedMonth] = useState('December 2024');
-  
-  const months = ['December 2024', 'November 2024', 'October 2024', 'September 2024'];
-  
-  const attendanceData = {
-    'December 2024': [
-      { subject: 'Calculus III', total: 20, present: 18, absent: 2, percentage: 90, color: '#4F46E5' },
-      { subject: 'Physics II', total: 22, present: 20, absent: 2, percentage: 91, color: '#059669' },
-      { subject: 'Computer Science', total: 18, present: 17, absent: 1, percentage: 94, color: '#DC2626' },
-      { subject: 'English Literature', total: 16, present: 15, absent: 1, percentage: 94, color: '#7C2D12' },
-      { subject: 'Chemistry', total: 20, present: 16, absent: 4, percentage: 80, color: '#BE185D' },
-    ],
-    'November 2024': [
-      { subject: 'Calculus III', total: 22, present: 20, absent: 2, percentage: 91, color: '#4F46E5' },
-      { subject: 'Physics II', total: 20, present: 18, absent: 2, percentage: 90, color: '#059669' },
-      { subject: 'Computer Science', total: 20, present: 19, absent: 1, percentage: 95, color: '#DC2626' },
-      { subject: 'English Literature', total: 18, present: 16, absent: 2, percentage: 89, color: '#7C2D12' },
-      { subject: 'Chemistry', total: 22, present: 18, absent: 4, percentage: 82, color: '#BE185D' },
-    ],
-    'October 2024': [
-      { subject: 'Calculus III', total: 24, present: 22, absent: 2, percentage: 92, color: '#4F46E5' },
-      { subject: 'Physics II', total: 20, present: 19, absent: 1, percentage: 95, color: '#059669' },
-      { subject: 'Computer Science', total: 22, present: 20, absent: 2, percentage: 91, color: '#DC2626' },
-      { subject: 'English Literature', total: 18, present: 17, absent: 1, percentage: 94, color: '#7C2D12' },
-      { subject: 'Chemistry', total: 20, present: 17, absent: 3, percentage: 85, color: '#BE185D' },
-    ],
-    'September 2024': [
-      { subject: 'Calculus III', total: 20, present: 19, absent: 1, percentage: 95, color: '#4F46E5' },
-      { subject: 'Physics II', total: 18, present: 17, absent: 1, percentage: 94, color: '#059669' },
-      { subject: 'Computer Science', total: 20, present: 18, absent: 2, percentage: 90, color: '#DC2626' },
-      { subject: 'English Literature', total: 16, present: 15, absent: 1, percentage: 94, color: '#7C2D12' },
-      { subject: 'Chemistry', total: 18, present: 16, absent: 2, percentage: 89, color: '#BE185D' },
-    ]
-  };
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [months, setMonths] = useState([]);
+  const [attendanceData, setAttendanceData] = useState({});
+
+  // Load attendance from Firestore
+  useEffect(() => {
+    const loadAttendance = async () => {
+      if (user?.uid) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            if (data.attendance) {
+              setAttendanceData(data.attendance);
+              const monthList = Object.keys(data.attendance);
+              setMonths(monthList);
+              if (monthList.length > 0) {
+                setSelectedMonth(monthList[0]);
+              }
+            }
+          }
+        } catch (error) {
+          console.log('Error loading attendance:', error);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    };
+    loadAttendance();
+  }, [user]);
   
   const currentMonthData = attendanceData[selectedMonth] || [];
   const totalClasses = currentMonthData.reduce((sum, subject) => sum + subject.total, 0);
@@ -58,6 +61,14 @@ const attendance = () => {
     if (percentage >= 75) return 'Good';
     return 'Low';
   };
+
+  if (loading) {
+    return (
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
   
   return (
     <View className="flex-1">

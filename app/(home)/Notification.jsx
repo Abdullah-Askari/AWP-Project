@@ -1,70 +1,54 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../context/useAuth';
 import { useTheme } from '../../context/useTheme';
-
-const notifications = [
-  {
-    id: 1,
-    sender: 'Csdemo.agent',
-    message: 'Makeup class scheduled',
-    time: '2h ago',
-    icon: 'calendar-outline',
-    color: '#3B82F6'
-  },
-  {
-    id: 2,
-    sender: 'Csdemo.agent',
-    message: 'New assignment posted',
-    time: '5h ago',
-    icon: 'document-text-outline',
-    color: '#10B981'
-  },
-  {
-    id: 3,
-    sender: 'Csdemo.agent',
-    message: 'Class cancelled',
-    time: '1d ago',
-    icon: 'close-circle-outline',
-    color: '#EF4444'
-  },
-  {
-    id: 4,
-    sender: 'Csdemo.agent',
-    message: 'New grades available',
-    time: '2d ago',
-    icon: 'ribbon-outline',
-    color: '#8B5CF6'
-  },
-  {
-    id: 5,
-    sender: 'Csdemo.agent',
-    message: 'Exam schedule released',
-    time: '3d ago',
-    icon: 'clipboard-outline',
-    color: '#F59E0B'
-  },
-  {
-    id: 6,
-    sender: 'Csdemo.agent',
-    message: 'New course material uploaded',
-    time: '5d ago',
-    icon: 'book-outline',
-    color: '#06B6D4'
-  },
-  {
-    id: 7,
-    sender: 'Csdemo.agent',
-    message: 'Project deadline extended',
-    time: '1w ago',
-    icon: 'time-outline',
-    color: '#84CC16'
-  }
-];
+import { db } from '../../firebaseConfig';
 
 const Notification = () => {
   const router = useRouter();
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [notificationList, setNotificationList] = useState([]);
+
+  // Load notifications from Firestore
+  useEffect(() => {
+    const loadNotifications = async () => {
+      if (user?.uid) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            if (data.notifications) {
+              setNotificationList(data.notifications);
+            }
+          }
+          // Save visit
+          await setDoc(doc(db, 'users', user.uid, 'screens', 'notifications'), {
+            lastVisited: serverTimestamp(),
+          }, { merge: true });
+        } catch (error) {
+          console.log('Error loading notifications:', error);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    };
+    loadNotifications();
+  }, [user]);
+
+  if (loading) {
+    return (
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
   
   return (
     <View className="flex-1">
@@ -83,30 +67,37 @@ const Notification = () => {
         <Text className="text-2xl font-bold mb-6" style={{ color: theme.text }}>Recent Notifications</Text>
         
         <ScrollView showsVerticalScrollIndicator={false}>
-          {notifications.map((notification, index) => (
-            <TouchableOpacity 
-              key={notification.id}
-              className="p-4 rounded-xl shadow-sm mb-4"
-              style={{ backgroundColor: theme.surface }}
-              activeOpacity={0.7}
-            >
-              <View className="flex-row items-center">
-                <View 
-                  className="w-12 h-12 rounded-full items-center justify-center mr-4"
-                  style={{ backgroundColor: notification.color + '20' }}
-                >
-                  <Ionicons name={notification.icon} size={24} color={notification.color} />
-                </View>
-                <View className="flex-1">
-                  <View className="flex-row items-center justify-between mb-1">
-                    <Text className="font-semibold" style={{ color: theme.text }}>{notification.sender}</Text>
-                    <Text className="text-sm" style={{ color: theme.textTertiary }}>{notification.time}</Text>
+          {notificationList.length === 0 ? (
+            <View className="items-center py-10">
+              <Ionicons name="notifications-off-outline" size={48} color={theme.textTertiary} />
+              <Text className="mt-4" style={{ color: theme.textSecondary }}>No notifications yet</Text>
+            </View>
+          ) : (
+            notificationList.map((notification, index) => (
+              <TouchableOpacity 
+                key={notification.id || index}
+                className="p-4 rounded-xl shadow-sm mb-4"
+                style={{ backgroundColor: theme.surface }}
+                activeOpacity={0.7}
+              >
+                <View className="flex-row items-center">
+                  <View 
+                    className="w-12 h-12 rounded-full items-center justify-center mr-4"
+                    style={{ backgroundColor: notification.color + '20' }}
+                  >
+                    <Ionicons name={notification.icon} size={24} color={notification.color} />
                   </View>
-                  <Text style={{ color: theme.textSecondary }}>{notification.message}</Text>
+                  <View className="flex-1">
+                    <View className="flex-row items-center justify-between mb-1">
+                      <Text className="font-semibold" style={{ color: theme.text }}>{notification.sender}</Text>
+                      <Text className="text-sm" style={{ color: theme.textTertiary }}>{notification.time}</Text>
+                    </View>
+                    <Text style={{ color: theme.textSecondary }}>{notification.message}</Text>
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
-          ))}
+              </TouchableOpacity>
+            ))
+          )}
         </ScrollView>
       </View>
     </View>

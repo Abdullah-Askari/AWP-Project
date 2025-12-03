@@ -1,5 +1,21 @@
-import { Redirect } from 'expo-router'
+import { Redirect } from 'expo-router';
+import { ActivityIndicator, View } from 'react-native';
+import { useAuth } from '../context/useAuth';
 
 export default function Index() {
-  return <Redirect href="/(home)/Dashboard" />
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#2D9CDB" />
+      </View>
+    );
+  }
+
+  if (user) {
+    return <Redirect href="/(home)/Dashboard" />
+  }
+
+  return <Redirect href="/(auth)/SignIn" />
 }

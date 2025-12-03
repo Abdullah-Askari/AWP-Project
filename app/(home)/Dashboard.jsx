@@ -1,18 +1,71 @@
 import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import { useRouter } from 'expo-router'
-import { useRef, useState } from 'react'
-import { Animated, Dimensions, Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native'
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { useEffect, useRef, useState } from 'react'
+import { ActivityIndicator, Animated, Dimensions, Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native'
+import { useAuth } from '../../context/useAuth'
 import { useTheme } from '../../context/useTheme'
+import { db } from '../../firebaseConfig'
 
 const { width, height } = Dimensions.get('window')
 
 const Dashboard = () => {
   const router = useRouter();
   const { theme } = useTheme();
+  const { user, signOut } = useAuth();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
   const slideAnim = useRef(new Animated.Value(-width * 0.8)).current
   const overlayAnim = useRef(new Animated.Value(0)).current
+  
+  const [dashboardData, setDashboardData] = useState({
+    grades: '0%',
+    attendance: '0%',
+    pendingFees: 'PKR 0',
+    dueDate: 'N/A'
+  });
+  
+  const [subjects, setSubjects] = useState([]);
+
+  // Load data from Firestore
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      if (user?.uid) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            if (data.dashboard) {
+              setDashboardData(data.dashboard);
+            }
+            if (data.subjects) {
+              setSubjects(data.subjects);
+            }
+          }
+          // Save visit
+          await setDoc(doc(db, 'users', user.uid, 'screens', 'dashboard'), {
+            lastVisited: serverTimestamp(),
+          }, { merge: true });
+        } catch (error) {
+          console.log('Error loading dashboard data:', error);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    };
+    loadDashboardData();
+  }, [user]);
+
+  // Handle logout
+  const handleLogout = async () => {
+    const result = await signOut();
+    if (result.success) {
+      router.replace('/(auth)/SignIn');
+    }
+  };
 
   const toggleDrawer = () => {
     const toValue = isDrawerOpen ? -width * 0.8 : 0
@@ -51,26 +104,14 @@ const Dashboard = () => {
       icon:'settings-outline', label:'Settings', color:'#000', route:'/(OnBoarding)/DrawerScreens/settings'
     }
   ]
-  const subjects = [
-    {
-        icon: 'calculator',
-        name: 'Calculus',
-        time: '9:00 AM - 10:30 AM',
-        color: '#000'
-    },
-    {
-        icon: 'flask',
-        name: 'Physics',
-        time: '11:00 AM - 12:30 PM',
-        color: 'black'
-    },
-    {
-        icon: 'desktop',
-        name: 'Computer Science',
-        time: '2:00 PM - 3:30 PM',
-        color: '#000'
-    }
-  ]
+
+  if (loading) {
+    return (
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1">
@@ -159,7 +200,7 @@ const Dashboard = () => {
                 <Ionicons name="ribbon" size={28} color={theme.success} />
               </View>
               <Text className="text-sm font-medium mb-1" style={{ color: theme.textSecondary }}>Grades</Text>
-              <Text className="text-3xl font-bold" style={{ color: theme.success }}>92%</Text>
+              <Text className="text-3xl font-bold" style={{ color: theme.success }}>{dashboardData.grades}</Text>
               <Text className="text-xs mt-1" style={{ color: theme.textTertiary }}>Excellent</Text>
             </TouchableOpacity>
             
@@ -184,7 +225,7 @@ const Dashboard = () => {
                 <Ionicons name="checkmark-done" size={28} color={theme.primary} />
               </View>
               <Text className="text-sm font-medium mb-1" style={{ color: theme.textSecondary }}>Attendance</Text>
-              <Text className="text-3xl font-bold" style={{ color: theme.primary }}>95%</Text>
+              <Text className="text-3xl font-bold" style={{ color: theme.primary }}>{dashboardData.attendance}</Text>
               <Text className="text-xs mt-1" style={{ color: theme.textTertiary }}>Great</Text>
             </TouchableOpacity>
           </View>
@@ -210,8 +251,8 @@ const Dashboard = () => {
               <Ionicons name='card' size={32} color={theme.warning} />
             </View>
             <Text className="text-sm font-medium mb-2" style={{ color: theme.textSecondary }}>Pending Fees</Text>
-            <Text className="text-4xl font-bold mb-1" style={{ color: theme.warning }}>$1,200</Text>
-            <Text className="text-xs" style={{ color: theme.textTertiary }}>Due by Dec 15</Text>
+            <Text className="text-4xl font-bold mb-1" style={{ color: theme.warning }}>{dashboardData.pendingFees}</Text>
+            <Text className="text-xs" style={{ color: theme.textTertiary }}>Due by {dashboardData.dueDate}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -297,6 +338,7 @@ const Dashboard = () => {
               className="flex-row items-center py-4 px-4 rounded-xl shadow-sm"
               style={{ backgroundColor: theme.surface }}
               activeOpacity={0.7}
+              onPress={handleLogout}
             >
               <View className="w-10 h-10 rounded-lg items-center justify-center mr-4">
                 <Image

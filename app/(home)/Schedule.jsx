@@ -1,103 +1,55 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StatusBar, Text, View } from "react-native";
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StatusBar, Text, View } from "react-native";
+import { useAuth } from '../../context/useAuth';
 import { useTheme } from '../../context/useTheme';
-
-const weeklySchedule = [
-  {
-    day: "Monday",
-    classes: [
-      {
-        subject: "Calculus",
-        time: "9:00 AM - 10:30 AM",
-        room: "Room 301",
-        professor: "Dr. Smith",
-        color: "#3B82F6",
-        icon: "calculator"
-      },
-      {
-        subject: "Physics",
-        time: "2:00 PM - 3:30 PM",
-        room: "Lab 205",
-        professor: "Dr. Johnson",
-        color: "#EF4444",
-        icon: "flask"
-      }
-    ]
-  },
-  {
-    day: "Tuesday",
-    classes: [
-      {
-        subject: "Computer Science",
-        time: "10:00 AM - 11:30 AM",
-        room: "CS Building",
-        professor: "Prof. Davis",
-        color: "#10B981",
-        icon: "desktop"
-      },
-      {
-        subject: "Calculus",
-        time: "1:00 PM - 2:30 PM",
-        room: "Room 301",
-        professor: "Dr. Smith",
-        color: "#3B82F6",
-        icon: "calculator"
-      }
-    ]
-  },
-  {
-    day: "Wednesday",
-    classes: [
-      {
-        subject: "Physics",
-        time: "9:00 AM - 10:30 AM",
-        room: "Lab 205",
-        professor: "Dr. Johnson",
-        color: "#EF4444",
-        icon: "flask"
-      }
-    ]
-  },
-  {
-    day: "Thursday",
-    classes: [
-      {
-        subject: "Computer Science",
-        time: "11:00 AM - 12:30 PM",
-        room: "CS Building",
-        professor: "Prof. Davis",
-        color: "#10B981",
-        icon: "desktop"
-      },
-      {
-        subject: "Calculus",
-        time: "2:00 PM - 3:30 PM",
-        room: "Room 301",
-        professor: "Dr. Smith",
-        color: "#3B82F6",
-        icon: "calculator"
-      }
-    ]
-  },
-  {
-    day: "Friday",
-    classes: [
-      {
-        subject: "Physics",
-        time: "10:00 AM - 11:30 AM",
-        room: "Lab 205",
-        professor: "Dr. Johnson",
-        color: "#EF4444",
-        icon: "flask"
-      }
-    ]
-  }
-];
+import { db } from '../../firebaseConfig';
 
 export default function Schedule() {
   const router = useRouter();
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [weeklySchedule, setWeeklySchedule] = useState([]);
+
+  // Load schedule from Firestore
+  useEffect(() => {
+    const loadScheduleData = async () => {
+      if (user?.uid) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            if (data.schedule) {
+              setWeeklySchedule(data.schedule);
+            }
+          }
+          // Save visit
+          await setDoc(doc(db, 'users', user.uid, 'screens', 'schedule'), {
+            lastVisited: serverTimestamp(),
+          }, { merge: true });
+        } catch (error) {
+          console.log('Error loading schedule data:', error);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    };
+    loadScheduleData();
+  }, [user]);
+
+  if (loading) {
+    return (
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1">
       {/* Header */}

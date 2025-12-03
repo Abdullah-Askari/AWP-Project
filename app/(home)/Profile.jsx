@@ -1,12 +1,84 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { Pressable, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../context/useAuth';
 import { useTheme } from '../../context/useTheme';
+import { db } from '../../firebaseConfig';
 
 const Profile = () => {
   const router = useRouter();
   const { theme } = useTheme();
+  const { user, updateUserProfile } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [profileData, setProfileData] = useState({
+    name: '',
+    email: '',
+    address: '',
+    dob: ''
+  });
+
+  // Load profile data from Firestore
+  useEffect(() => {
+    const loadProfileData = async () => {
+      if (user?.uid) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            if (data.profile) {
+              setProfileData(data.profile);
+            } else {
+              // Fallback to root level data
+              setProfileData({
+                name: data.displayName || '',
+                email: data.email || '',
+                address: data.address || '',
+                dob: data.dob || ''
+              });
+            }
+          }
+          // Save profile visit
+          await setDoc(doc(db, 'users', user.uid, 'screens', 'profile'), {
+            lastVisited: serverTimestamp(),
+          }, { merge: true });
+        } catch (error) {
+          console.log('Error loading profile data:', error);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    };
+    loadProfileData();
+  }, [user]);
+
+  // Save profile changes
+  const handleSaveChanges = async () => {
+    if (user?.uid) {
+      try {
+        await setDoc(doc(db, 'users', user.uid), {
+          profile: profileData,
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+        Alert.alert('Success', 'Profile saved successfully!');
+      } catch (error) {
+        Alert.alert('Error', 'Failed to save profile');
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1">
       {/* Header */}
@@ -55,18 +127,18 @@ const Profile = () => {
               {/* User Information [name]*/}
               <View className="rounded-xl p-4 shadow-sm mb-4" style={{ backgroundColor: theme.surface }}>
                 <Text className="text-sm mb-1" style={{ color: theme.textSecondary }}>Name</Text>
-                <Text className="text-lg font-semibold" style={{ color: theme.text }}>John Doe</Text>
+                <Text className="text-lg font-semibold" style={{ color: theme.text }}>{profileData.name || 'Not set'}</Text>
               </View>
                   
                   {/* User Information [email]*/}
                   <View className="rounded-xl p-4 shadow-sm mb-4" style={{ backgroundColor: theme.surface }}>
                     <Text className="text-sm mb-1" style={{ color: theme.textSecondary }}>Email</Text>
-                    <Text className="text-lg font-semibold" style={{ color: theme.text }}>john.doe@example.com</Text>
+                    <Text className="text-lg font-semibold" style={{ color: theme.text }}>{profileData.email || 'Not set'}</Text>
                   </View>
                   {/* User Information [address]*/}
                   <View className="rounded-xl p-4 shadow-sm mb-4" style={{ backgroundColor: theme.surface }}>
                     <Text className="text-sm mb-1" style={{ color: theme.textSecondary }}>Address</Text>
-                    <Text className="text-lg font-semibold" style={{ color: theme.text }}>123 Main St, Springfield</Text>
+                    <Text className="text-lg font-semibold" style={{ color: theme.text }}>{profileData.address || 'Not set'}</Text>
                   </View>
 
                   {/* User Information [D.O.B]*/}
@@ -74,7 +146,7 @@ const Profile = () => {
                     <View className="flex-row items-center justify-between">
                       <View className="flex-1">
                         <Text className="text-sm mb-1" style={{ color: theme.textSecondary }}>D.O.B</Text>
-                        <Text className="text-lg font-semibold" style={{ color: theme.text }}>January 15, 1995</Text>
+                        <Text className="text-lg font-semibold" style={{ color: theme.text }}>{profileData.dob || 'Not set'}</Text>
                       </View>
                       <Pressable className="ml-4" onPress={() => console.log('Calendar pressed')}>
                         <Ionicons name="calendar-outline" size={20} color={theme.textSecondary} />
@@ -83,7 +155,11 @@ const Profile = () => {
                   </View>
                   
                   {/* Save Button */}
-                  <TouchableOpacity className="rounded-xl p-4 shadow-sm mt-4 items-center" style={{ backgroundColor: theme.primary }}>
+                  <TouchableOpacity 
+                    className="rounded-xl p-4 shadow-sm mt-4 items-center" 
+                    style={{ backgroundColor: theme.primary }}
+                    onPress={handleSaveChanges}
+                  >
                     <Text className="text-lg font-semibold" style={{ color: theme.textInverse }}>Save Changes</Text>
                   </TouchableOpacity>
                 </View>

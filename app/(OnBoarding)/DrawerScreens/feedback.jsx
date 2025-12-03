@@ -1,12 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../../context/useAuth';
 import { useTheme } from '../../../context/useTheme';
+import { db } from '../../../firebaseConfig';
 
 const Feedback = () => {
   const router = useRouter();
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState('received');
   const [newFeedback, setNewFeedback] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
@@ -14,6 +19,35 @@ const Feedback = () => {
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const scrollViewRef = useRef(null);
   const textInputRef = useRef(null);
+  const [receivedFeedback, setReceivedFeedback] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+
+  // Load feedback from Firestore
+  useEffect(() => {
+    const loadFeedbackData = async () => {
+      if (user?.uid) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            if (data.feedback) {
+              setReceivedFeedback(data.feedback);
+            }
+            if (data.subjects) {
+              setSubjects(data.subjects.map(s => s.name));
+            }
+          }
+        } catch (error) {
+          console.log('Error loading feedback:', error);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    };
+    loadFeedbackData();
+  }, [user]);
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
@@ -40,50 +74,13 @@ const Feedback = () => {
     };
   }, []);
   
-  const receivedFeedback = [
-    {
-      id: 1,
-      subject: 'Calculus III',
-      instructor: 'Dr. Sarah Ahmed',
-      date: '2024-11-28',
-      type: 'Assignment',
-      rating: 4,
-      message: 'Excellent work on the integration problems. Your step-by-step approach shows good understanding. Keep up the great work!',
-      color: '#4F46E5'
-    },
-    {
-      id: 2,
-      subject: 'Physics II',
-      instructor: 'Prof. Muhammad Hassan',
-      date: '2024-11-25',
-      type: 'Lab Report',
-      rating: 5,
-      message: 'Outstanding lab report! Your analysis of the electromagnetic field experiments was thorough and accurate.',
-      color: '#059669'
-    },
-    {
-      id: 3,
-      subject: 'Computer Science',
-      instructor: 'Dr. Fatima Khan',
-      date: '2024-11-22',
-      type: 'Project',
-      rating: 3,
-      message: 'Good effort on the programming project. However, your code could be more optimized. Consider using better algorithms for improved performance.',
-      color: '#DC2626'
-    },
-    {
-      id: 4,
-      subject: 'English Literature',
-      instructor: 'Ms. Ayesha Ali',
-      date: '2024-11-20',
-      type: 'Essay',
-      rating: 4,
-      message: 'Well-structured essay with good arguments. Your writing style has improved significantly this semester.',
-      color: '#7C2D12'
-    }
-  ];
-  
-  const subjects = ['Calculus III', 'Physics II', 'Computer Science', 'English Literature', 'Chemistry'];
+  if (loading) {
+    return (
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
   
   const getRatingColor = (rating) => {
     if (rating >= 4) return '#10B981';

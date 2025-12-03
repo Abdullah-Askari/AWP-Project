@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "339496645684",
+    "project_id": "ucpportalclone-b264a",
+    "storage_bucket": "ucpportalclone-b264a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:339496645684:android:916e98b95f1f4d6df54661",
+        "android_client_info": {
+          "package_name": "com.ucp.portal.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDD4V0vLy5PRoI6nSsHJEyN0Z3CdW0Gu_Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,93 +1,36 @@
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
-import { useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import * as AuthSession from 'expo-auth-session';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../context/useAuth';
 
 const SignIn = () => {
-  const [userInfo, setUserInfo] = useState(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { signIn } = useAuth();
 
-  // YOUR GOOGLE CLIENT ID (Web Client ID)
-  const clientId =
-    "21114518358-emll0l81vpcn6jsfe9unv2lne0k6eemi.apps.googleusercontent.com";
+  // Email/Password login
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter email and password');
+      return;
+    }
 
-  // Must use proxy in Expo Go
-  const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
+    setLoading(true);
+    const result = await signIn(email, password);
+    setLoading(false);
 
-  // Google OAuth 2.0 Discovery
-  const discovery = {
-    authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
-    tokenEndpoint: "https://oauth2.googleapis.com/token",
-    revocationEndpoint: "https://oauth2.googleapis.com/revoke",
-  };
-
-  // Create OAuth Request
-  const [request, response, promptAsync] = AuthSession.useAuthRequest(
-    {
-      clientId,
-      redirectUri,
-      scopes: ["openid", "profile", "email"],
-      responseType: "code",
-      usePKCE: true,
-    },
-    discovery
-  );
-
-  // When user returns from Google
-  useEffect(() => {
-    const handleSignIn = async () => {
-      if (response?.type === "success") {
-        const { code } = response.params;
-
-        // Exchange Code -> Access Token
-        const tokenResponse = await AuthSession.exchangeCodeAsync(
-          {
-            clientId,
-            code,
-            redirectUri,
-            extraParams: {
-              code_verifier: request.codeVerifier,
-            },
-          },
-          discovery
-        );
-
-        fetchUserInfo(tokenResponse.access_token);
-      }
-    };
-
-    handleSignIn();
-  }, [response]);
-
-  // Fetch user info
-  const fetchUserInfo = async (token) => {
-    try {
-      const res = await fetch(
-        "https://www.googleapis.com/oauth2/v1/userinfo?alt=json",
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      const user = await res.json();
-      setUserInfo(user);
-
-      Alert.alert("Login Successful", `Welcome ${user.name}`);
-
-      // Navigate to /home after Google login
-      router.replace('/home');
-
-    } catch (err) {
-      Alert.alert("Error", "Failed to fetch Google user info");
+    if (result.success) {
+      router.replace('/(home)/Dashboard');
+    } else {
+      Alert.alert('Login Failed', result.error);
     }
   };
 
-  // Regular email login
-  const handleLogin = () => {
-    Alert.alert("Login", "Regular login functionality will be implemented");
-  };
-
   return (
-    <View className="flex justify-center items-center pt-8">
+    <View className="flex-1 justify-center items-center pt-8" style={{ backgroundColor: '#FFFFFF' }}>
       <Image
         source={require("../../assets/images/signIn.png")}
         style={{ width: 142, height: 142 }}
@@ -133,6 +76,10 @@ const SignIn = () => {
         <TextInput
           placeholder="l1s23bsse0037@ucp.edu.pk"
           placeholderTextColor="#999"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
           style={{
             paddingVertical: 12,
             fontSize: 16,
@@ -150,6 +97,8 @@ const SignIn = () => {
           placeholder="********"
           secureTextEntry={true}
           placeholderTextColor="#999"
+          value={password}
+          onChangeText={setPassword}
           style={{
             paddingVertical: 12,
             fontSize: 16,
@@ -174,16 +123,21 @@ const SignIn = () => {
           {/* Email login */}
           <TouchableOpacity
             onPress={handleLogin}
+            disabled={loading}
             style={{
               borderRadius: 8,
-              backgroundColor: "#2D9CDB",
+              backgroundColor: loading ? "#93c5fd" : "#2D9CDB",
               paddingVertical: 12,
               paddingHorizontal: 54,
             }}
           >
-            <Text style={{ color: "white", fontWeight: "600", fontSize: 16 }}>
-              Login
-            </Text>
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={{ color: "white", fontWeight: "600", fontSize: 16 }}>
+                Login
+              </Text>
+            )}
           </TouchableOpacity>
 
           <Text
@@ -226,9 +180,9 @@ const SignIn = () => {
             </Text>
           </TouchableOpacity>
 
-          {/* Google Sign-In */}
+          {/* Google Sign-In (disabled for now) */}
           <TouchableOpacity
-            onPress={() => promptAsync()}
+            onPress={() => Alert.alert('Coming Soon', 'Google sign-in will be available soon')}
             style={{
               borderRadius: 8,
               backgroundColor: "#ffffff",

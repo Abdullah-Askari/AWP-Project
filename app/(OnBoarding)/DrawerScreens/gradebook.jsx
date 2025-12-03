@@ -1,41 +1,49 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { doc, getDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../../context/useAuth';
 import { useTheme } from '../../../context/useTheme';
+import { db } from '../../../firebaseConfig';
 
 const gradebook = () => {
   const router = useRouter();
   const { theme } = useTheme();
-  const [selectedSemester, setSelectedSemester] = useState('Fall 2024');
-  
-  const semesters = ['Fall 2024', 'Spring 2024', 'Fall 2023', 'Spring 2023'];
-  
-  const semesterData = {
-    'Fall 2024': [
-      { name: 'Calculus III', code: 'MATH 301', credits: 3, grade: 'A', gpa: 4.0, color: '#4F46E5' },
-      { name: 'Physics II', code: 'PHYS 202', credits: 4, grade: 'A-', gpa: 3.7, color: '#059669' },
-      { name: 'Computer Science', code: 'CS 101', credits: 3, grade: 'B+', gpa: 3.3, color: '#DC2626' },
-      { name: 'English Literature', code: 'ENG 201', credits: 3, grade: 'A', gpa: 4.0, color: '#7C2D12' },
-      { name: 'Chemistry', code: 'CHEM 101', credits: 4, grade: 'B', gpa: 3.0, color: '#BE185D' },
-    ],
-    'Spring 2024': [
-      { name: 'Linear Algebra', code: 'MATH 250', credits: 3, grade: 'A', gpa: 4.0, color: '#4F46E5' },
-      { name: 'Physics I', code: 'PHYS 101', credits: 4, grade: 'B+', gpa: 3.3, color: '#059669' },
-      { name: 'Programming', code: 'CS 102', credits: 3, grade: 'A-', gpa: 3.7, color: '#DC2626' },
-      { name: 'History', code: 'HIST 101', credits: 3, grade: 'B', gpa: 3.0, color: '#7C2D12' },
-    ],
-    'Fall 2023': [
-      { name: 'Calculus II', code: 'MATH 201', credits: 3, grade: 'A-', gpa: 3.7, color: '#4F46E5' },
-      { name: 'Biology', code: 'BIO 101', credits: 4, grade: 'B+', gpa: 3.3, color: '#059669' },
-      { name: 'Statistics', code: 'STAT 101', credits: 3, grade: 'A', gpa: 4.0, color: '#DC2626' },
-    ],
-    'Spring 2023': [
-      { name: 'Calculus I', code: 'MATH 101', credits: 3, grade: 'B+', gpa: 3.3, color: '#4F46E5' },
-      { name: 'Psychology', code: 'PSY 101', credits: 3, grade: 'A', gpa: 4.0, color: '#059669' },
-      { name: 'Philosophy', code: 'PHIL 101', credits: 3, grade: 'B', gpa: 3.0, color: '#DC2626' },
-    ]
-  };
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [selectedSemester, setSelectedSemester] = useState('');
+  const [semesters, setSemesters] = useState([]);
+  const [semesterData, setSemesterData] = useState({});
+
+  // Load gradebook from Firestore
+  useEffect(() => {
+    const loadGradebook = async () => {
+      if (user?.uid) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            if (data.gradebook) {
+              setSemesterData(data.gradebook);
+              const semesterList = Object.keys(data.gradebook);
+              setSemesters(semesterList);
+              if (semesterList.length > 0) {
+                setSelectedSemester(semesterList[0]);
+              }
+            }
+          }
+        } catch (error) {
+          console.log('Error loading gradebook:', error);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    };
+    loadGradebook();
+  }, [user]);
   
   const currentSemesterGrades = semesterData[selectedSemester] || [];
   const totalCredits = currentSemesterGrades.reduce((sum, subject) => sum + subject.credits, 0);
@@ -47,6 +55,14 @@ const gradebook = () => {
     if (grade.startsWith('C')) return '#EF4444';
     return '#6B7280';
   };
+
+  if (loading) {
+    return (
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
   
   return (
     <View className="flex-1">

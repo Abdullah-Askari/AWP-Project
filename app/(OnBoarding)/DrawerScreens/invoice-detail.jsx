@@ -1,90 +1,77 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Pressable, ScrollView, StatusBar, Text, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { doc, getDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StatusBar, Text, View } from 'react-native';
+import { useAuth } from '../../../context/useAuth';
 import { useTheme } from '../../../context/useTheme';
+import { db } from '../../../firebaseConfig';
 
 const InvoiceDetail = () => {
   const router = useRouter();
   const { theme } = useTheme();
+  const { user } = useAuth();
   const { invoiceId } = useLocalSearchParams();
-  
-  // Sample invoice details data
-  const invoiceDetails = {
-    '20241001': {
-      id: '20241001',
-      semester: 'Fall 2024',
-      amountUSD: '$1,200',
-      amountPKR: 'PKR 201,600',
-      status: 'Paid',
-      statusColor: '#10B981',
-      dueDate: 'December 15, 2024',
-      issueDate: 'August 1, 2024',
-      description: 'Tuition Fee for Fall 2024 Semester',
-      breakdown: [
-        { item: 'Tuition Fee', amount: 'PKR 150,000' },
-        { item: 'Lab Fee', amount: 'PKR 20,000' },
-        { item: 'Library Fee', amount: 'PKR 15,000' },
-        { item: 'Sports Fee', amount: 'PKR 10,000' },
-        { item: 'Technology Fee', amount: 'PKR 6,600' }
-      ]
-    },
-    '20241002': {
-      id: '20241002',
-      semester: 'Spring 2024',
-      amountUSD: '$1,200',
-      amountPKR: 'PKR 201,600',
-      status: 'Paid',
-      statusColor: '#10B981',
-      dueDate: 'May 15, 2024',
-      issueDate: 'January 1, 2024',
-      description: 'Tuition Fee for Spring 2024 Semester',
-      breakdown: [
-        { item: 'Tuition Fee', amount: 'PKR 150,000' },
-        { item: 'Lab Fee', amount: 'PKR 20,000' },
-        { item: 'Library Fee', amount: 'PKR 15,000' },
-        { item: 'Sports Fee', amount: 'PKR 10,000' },
-        { item: 'Technology Fee', amount: 'PKR 6,600' }
-      ]
-    },
-    '20231001': {
-      id: '20231001',
-      semester: 'Fall 2023',
-      amountUSD: '$1,150',
-      amountPKR: 'PKR 201,600',
-      status: 'Paid',
-      statusColor: '#10B981',
-      dueDate: 'December 15, 2023',
-      issueDate: 'August 1, 2023',
-      description: 'Tuition Fee for Fall 2023 Semester',
-      breakdown: [
-        { item: 'Tuition Fee', amount: 'PKR 150,000' },
-        { item: 'Lab Fee', amount: 'PKR 20,000' },
-        { item: 'Library Fee', amount: 'PKR 15,000' },
-        { item: 'Sports Fee', amount: 'PKR 10,000' },
-        { item: 'Technology Fee', amount: 'PKR 6,600' }
-      ]
-    },
-    '20231002': {
-      id: '20231002',
-      semester: 'Spring 2023',
-      amountUSD: '$1,150',
-      amountPKR: 'PKR 201,600',
-      status: 'Paid',
-      statusColor: '#10B981',
-      dueDate: 'May 15, 2023',
-      issueDate: 'January 1, 2023',
-      description: 'Tuition Fee for Spring 2023 Semester',
-      breakdown: [
-        { item: 'Tuition Fee', amount: 'PKR 150,000' },
-        { item: 'Lab Fee', amount: 'PKR 20,000' },
-        { item: 'Library Fee', amount: 'PKR 15,000' },
-        { item: 'Sports Fee', amount: 'PKR 10,000' },
-        { item: 'Technology Fee', amount: 'PKR 6,600' }
-      ]
-    }
-  };
-  
-  const invoice = invoiceDetails[invoiceId] || invoiceDetails['20241001'];
+  const [loading, setLoading] = useState(true);
+  const [invoice, setInvoice] = useState(null);
+
+  // Load invoice details from Firestore
+  useEffect(() => {
+    const loadInvoiceDetail = async () => {
+      if (user?.uid && invoiceId) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            if (data.invoices) {
+              // Find the invoice in all years
+              for (const year of Object.keys(data.invoices)) {
+                const found = data.invoices[year].find(inv => inv.id === invoiceId);
+                if (found) {
+                  setInvoice(found);
+                  break;
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.log('Error loading invoice:', error);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    };
+    loadInvoiceDetail();
+  }, [user, invoiceId]);
+
+  if (loading) {
+    return (
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
+
+  if (!invoice) {
+    return (
+      <View className="flex-1">
+        <View className="shadow-md" style={{ backgroundColor: theme.primary, paddingTop: StatusBar.currentHeight }}>
+          <View className="flex-row items-center h-20 px-4 gap-4">
+            <Pressable className="p-2" onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={28} color={theme.textInverse} />
+            </Pressable>
+            <Text className="font-semibold text-xl flex-1" style={{ color: theme.textInverse }}>Invoice Details</Text>
+          </View>
+        </View>
+        <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
+          <Ionicons name="document-text-outline" size={48} color={theme.textTertiary} />
+          <Text className="mt-4" style={{ color: theme.textSecondary }}>Invoice not found</Text>
+        </View>
+      </View>
+    );
+  }
   
   return (
     <View className="flex-1">

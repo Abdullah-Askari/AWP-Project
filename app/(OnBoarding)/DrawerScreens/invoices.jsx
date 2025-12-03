@@ -1,11 +1,51 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { doc, getDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../../context/useAuth';
 import { useTheme } from '../../../context/useTheme';
+import { db } from '../../../firebaseConfig';
 
 const invoices = () => {
   const router = useRouter();
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [invoiceData, setInvoiceData] = useState({});
+
+  // Load invoices from Firestore
+  useEffect(() => {
+    const loadInvoices = async () => {
+      if (user?.uid) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            if (data.invoices) {
+              setInvoiceData(data.invoices);
+            }
+          }
+        } catch (error) {
+          console.log('Error loading invoices:', error);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    };
+    loadInvoices();
+  }, [user]);
+
+  if (loading) {
+    return (
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
+
   return (
     <View
     className="flex-1">
@@ -19,97 +59,41 @@ const invoices = () => {
         </View>
       </View>
       {/* Content */}
-      <View className="flex-1 p-6" style={{ backgroundColor: theme.background }}>
-        {/* 2024 Year Section */}
-        <View className="rounded-xl p-6 shadow-sm mb-4" style={{ backgroundColor: theme.surface }}>
-          <Text className="text-2xl font-bold mb-4" style={{ color: theme.text }}>2024</Text>
-          
-          {/* Fall 2024 Invoice */}
-          <View className="pt-4 mb-4" style={{ borderTopWidth: 1, borderTopColor: theme.border }}>
-            <View className="flex-row items-center justify-between mb-2">
-              <View className="flex-1">
-                <Text className="text-lg font-medium" style={{ color: theme.textSecondary }}>Invoice #20241001</Text>
-                <Text className="font-semibold" style={{ color: theme.success }}>Status: Paid</Text>
-                <Text style={{ color: theme.textSecondary }}>Fall 2024</Text>
-              </View>
-              <TouchableOpacity 
-                onPress={() => router.push('/(OnBoarding)/DrawerScreens/invoice-detail?invoiceId=20241001')}
-                className="rounded-lg py-2 px-4 flex-row items-center"
-                style={{ backgroundColor: theme.primary }}
-                activeOpacity={0.7}
-              >
-                <Text className="font-medium mr-2" style={{ color: theme.textInverse }}>View Details</Text>
-                <Ionicons name="chevron-forward" size={16} color="white" />
-              </TouchableOpacity>
-            </View>
+      <ScrollView className="flex-1 p-6" style={{ backgroundColor: theme.background }}>
+        {Object.keys(invoiceData).length === 0 ? (
+          <View className="items-center py-10">
+            <Ionicons name="document-text-outline" size={48} color={theme.textTertiary} />
+            <Text className="mt-4" style={{ color: theme.textSecondary }}>No invoices found</Text>
           </View>
-          
-          {/* Spring 2024 Invoice */}
-          <View className="pt-4" style={{ borderTopWidth: 1, borderTopColor: theme.border }}>
-            <View className="flex-row items-center justify-between mb-2">
-              <View className="flex-1">
-                <Text className="text-lg font-medium" style={{ color: theme.textSecondary }}>Invoice #20241002</Text>
-                <Text className="font-semibold" style={{ color: theme.success }}>Status: Paid</Text>
-                <Text style={{ color: theme.textSecondary }}>Spring 2024</Text>
-              </View>
-              <TouchableOpacity 
-                onPress={() => router.push('/(OnBoarding)/DrawerScreens/invoice-detail?invoiceId=20241002')}
-                className="rounded-lg py-2 px-4 flex-row items-center"
-                style={{ backgroundColor: theme.primary }}
-                activeOpacity={0.7}
-              >
-                <Text className="font-medium mr-2" style={{ color: theme.textInverse }}>View Details</Text>
-                <Ionicons name="chevron-forward" size={16} color="white" />
-              </TouchableOpacity>
+        ) : (
+          Object.keys(invoiceData).map((year) => (
+            <View key={year} className="rounded-xl p-6 shadow-sm mb-4" style={{ backgroundColor: theme.surface }}>
+              <Text className="text-2xl font-bold mb-4" style={{ color: theme.text }}>{year}</Text>
+              
+              {invoiceData[year].map((invoice, index) => (
+                <View key={invoice.id} className="pt-4 mb-4" style={{ borderTopWidth: index > 0 ? 1 : 0, borderTopColor: theme.border }}>
+                  <View className="flex-row items-center justify-between mb-2">
+                    <View className="flex-1">
+                      <Text className="text-lg font-medium" style={{ color: theme.textSecondary }}>Invoice #{invoice.id}</Text>
+                      <Text className="font-semibold" style={{ color: invoice.statusColor || theme.success }}>Status: {invoice.status}</Text>
+                      <Text style={{ color: theme.textSecondary }}>{invoice.semester}</Text>
+                    </View>
+                    <TouchableOpacity 
+                      onPress={() => router.push(`/(OnBoarding)/DrawerScreens/invoice-detail?invoiceId=${invoice.id}`)}
+                      className="rounded-lg py-2 px-4 flex-row items-center"
+                      style={{ backgroundColor: theme.primary }}
+                      activeOpacity={0.7}
+                    >
+                      <Text className="font-medium mr-2" style={{ color: theme.textInverse }}>View Details</Text>
+                      <Ionicons name="chevron-forward" size={16} color="white" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
             </View>
-          </View>
-        </View>
-
-        {/* 2023 Year Section */}
-        <View className="rounded-xl p-6 shadow-sm mb-4" style={{ backgroundColor: theme.surface }}>
-          <Text className="text-2xl font-bold mb-4" style={{ color: theme.text }}>2023</Text>
-          
-          {/* Fall 2023 Invoice */}
-          <View className="pt-4 mb-4" style={{ borderTopWidth: 1, borderTopColor: theme.border }}>
-            <View className="flex-row items-center justify-between mb-2">
-              <View className="flex-1">
-                <Text className="text-lg font-medium" style={{ color: theme.textSecondary }}>Invoice #20231001</Text>
-                <Text className="font-semibold" style={{ color: theme.success }}>Status: Paid</Text>
-                <Text style={{ color: theme.textSecondary }}>Fall 2023</Text>
-              </View>
-              <TouchableOpacity 
-                onPress={() => router.push('/(OnBoarding)/DrawerScreens/invoice-detail?invoiceId=20231001')}
-                className="rounded-lg py-2 px-4 flex-row items-center"
-                style={{ backgroundColor: theme.primary }}
-                activeOpacity={0.7}
-              >
-                <Text className="font-medium mr-2" style={{ color: theme.textInverse }}>View Details</Text>
-                <Ionicons name="chevron-forward" size={16} color="white" />
-              </TouchableOpacity>
-            </View>
-          </View>
-          
-          {/* Spring 2023 Invoice */}
-          <View className="pt-4" style={{ borderTopWidth: 1, borderTopColor: theme.border }}>
-            <View className="flex-row items-center justify-between mb-2">
-              <View className="flex-1">
-                <Text className="text-lg font-medium" style={{ color: theme.textSecondary }}>Invoice #20231002</Text>
-                <Text className="font-semibold" style={{ color: theme.success }}>Status: Paid</Text>
-                <Text style={{ color: theme.textSecondary }}>Spring 2023</Text>
-              </View>
-              <TouchableOpacity 
-                onPress={() => router.push('/(OnBoarding)/DrawerScreens/invoice-detail?invoiceId=20231002')}
-                className="rounded-lg py-2 px-4 flex-row items-center"
-                style={{ backgroundColor: theme.primary }}
-                activeOpacity={0.7}
-              >
-                <Text className="font-medium mr-2" style={{ color: theme.textInverse }}>View Details</Text>
-                <Ionicons name="chevron-forward" size={16} color="white" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </View>
+          ))
+        )}
+      </ScrollView>
     </View>
   )
 }
