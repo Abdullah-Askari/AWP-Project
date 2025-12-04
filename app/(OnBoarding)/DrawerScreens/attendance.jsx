@@ -1,49 +1,26 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../../context/useAuth';
 import { useTheme } from '../../../context/useTheme';
-import { db } from '../../../firebaseConfig';
 
 const attendance = () => {
   const router = useRouter();
   const { theme } = useTheme();
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const { userData } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState('');
-  const [months, setMonths] = useState([]);
-  const [attendanceData, setAttendanceData] = useState({});
-
-  // Load attendance from Firestore
+  
+  // Get data from centralized userData
+  const attendanceData = userData?.attendance || {};
+  const months = Object.keys(attendanceData);
+  
+  // Set default month on mount
   useEffect(() => {
-    const loadAttendance = async () => {
-      if (user?.uid) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            if (data.attendance) {
-              setAttendanceData(data.attendance);
-              const monthList = Object.keys(data.attendance);
-              setMonths(monthList);
-              if (monthList.length > 0) {
-                setSelectedMonth(monthList[0]);
-              }
-            }
-          }
-        } catch (error) {
-          console.log('Error loading attendance:', error);
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        setLoading(false);
-      }
-    };
-    loadAttendance();
-  }, [user]);
+    if (months.length > 0 && !selectedMonth) {
+      setSelectedMonth(months[0]);
+    }
+  }, [months]);
   
   const currentMonthData = attendanceData[selectedMonth] || [];
   const totalClasses = currentMonthData.reduce((sum, subject) => sum + subject.total, 0);
@@ -61,14 +38,6 @@ const attendance = () => {
     if (percentage >= 75) return 'Good';
     return 'Low';
   };
-
-  if (loading) {
-    return (
-      <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
-    );
-  }
   
   return (
     <View className="flex-1">

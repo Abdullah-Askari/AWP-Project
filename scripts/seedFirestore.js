@@ -97,7 +97,10 @@ const schedule = [
   {
     day: "Thursday",
     classes: [
+      { subject: "Data Structures", time: "9:00 AM - 10:30 AM", room: "Room 301", professor: "Dr. Ahmed Khan", color: "#4F46E5", icon: "code-slash" },
       { subject: "Database Systems", time: "11:00 AM - 12:30 PM", room: "Room 205", professor: "Dr. Usman Malik", color: "#F59E0B", icon: "server" },
+      { subject: "Web Development", time: "2:00 PM - 3:30 PM", room: "Lab 102", professor: "Ms. Sara Ali", color: "#10B981", icon: "globe" },
+      { subject: "Artificial Intelligence", time: "4:00 PM - 5:30 PM", room: "Room 401", professor: "Dr. Fatima Hassan", color: "#8B5CF6", icon: "bulb" },
     ],
   },
   {

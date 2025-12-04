@@ -1,13 +1,13 @@
 import {
-    createUserWithEmailAndPassword,
-    signOut as firebaseSignOut,
-    GoogleAuthProvider,
-    onAuthStateChanged,
-    signInWithCredential,
-    signInWithEmailAndPassword
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithCredential,
+  signInWithEmailAndPassword
 } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { auth, db } from '../firebaseConfig';
 
 const AuthContext = createContext({});
@@ -15,19 +15,46 @@ const AuthContext = createContext({});
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState(null);
+  const dataFetchedRef = useRef(false);
+
+  // Fetch all user data from Firestore once
+  const fetchUserData = async (uid) => {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setUserData(data);
+        return data;
+      }
+      return null;
+    } catch (error) {
+      console.log('Error fetching user data:', error);
+      return null;
+    }
+  };
+
+  // Refresh user data (can be called manually if needed)
+  const refreshUserData = async () => {
+    if (user?.uid && !dataFetchedRef.current) {
+      dataFetchedRef.current = true;
+      return await fetchUserData(user.uid);
+    }
+    return userData;
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Get additional user data from Firestore
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-          setUser({ uid: firebaseUser.uid, ...userDoc.data() });
-        } else {
-          setUser({ uid: firebaseUser.uid, email: firebaseUser.email });
-        }
+        // Get all user data from Firestore once
+        const data = await fetchUserData(firebaseUser.uid);
+        setUser({ uid: firebaseUser.uid, email: firebaseUser.email });
+        setUserData(data);
+        dataFetchedRef.current = true;
       } else {
         setUser(null);
+        setUserData(null);
+        dataFetchedRef.current = false;
       }
       setLoading(false);
     });
@@ -94,6 +121,8 @@ export const AuthProvider = ({ children }) => {
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
+      setUserData(null);
+      dataFetchedRef.current = false;
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -110,8 +139,26 @@ export const AuthProvider = ({ children }) => {
         updatedAt: serverTimestamp()
       }, { merge: true });
 
-      // Update local user state
-      setUser(prev => ({ ...prev, ...data }));
+      // Update local userData state
+      setUserData(prev => ({ ...prev, ...data }));
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
+
+  // Update specific section of userData locally and in Firestore
+  const updateUserData = async (section, data) => {
+    if (!user?.uid) return { success: false, error: 'No user logged in' };
+    
+    try {
+      await setDoc(doc(db, 'users', user.uid), {
+        [section]: data,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      // Update local userData state
+      setUserData(prev => ({ ...prev, [section]: data }));
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -151,12 +198,15 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={{
       user,
+      userData,
       loading,
       signIn,
       signUp,
       signOut,
       signInWithGoogle,
       updateUserProfile,
+      updateUserData,
+      refreshUserData,
       saveScreenData,
       getScreenData,
     }}>

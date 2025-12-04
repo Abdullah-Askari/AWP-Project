@@ -1,32 +1,35 @@
 import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import { useRouter } from 'expo-router'
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, Animated, BackHandler, Dimensions, Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native'
+import { Alert, Animated, BackHandler, Dimensions, Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native'
 import { useAuth } from '../../context/useAuth'
 import { useTheme } from '../../context/useTheme'
-import { db } from '../../firebaseConfig'
 
 const { width, height } = Dimensions.get('window')
 
 const Dashboard = () => {
   const router = useRouter();
   const { theme } = useTheme();
-  const { user, signOut } = useAuth();
+  const { user, userData, signOut } = useAuth();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const [loading, setLoading] = useState(true)
   const slideAnim = useRef(new Animated.Value(-width * 0.8)).current
   const overlayAnim = useRef(new Animated.Value(0)).current
   
-  const [dashboardData, setDashboardData] = useState({
+  // Get data from centralized userData
+  const dashboardData = userData?.dashboard || {
     grades: '0%',
     attendance: '0%',
     pendingFees: 'PKR 0',
     dueDate: 'N/A'
-  });
+  };
   
-  const [subjects, setSubjects] = useState([]);
+  // Get today's classes from schedule
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const today = days[new Date().getDay()];
+  const schedule = userData?.schedule || [];
+  const todaySchedule = schedule.find(s => s.day === today);
+  const todayClasses = todaySchedule?.classes || [];
 
   // Prevent back button from going to auth/onboarding screens
   useEffect(() => {
@@ -46,37 +49,6 @@ const Dashboard = () => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
     return () => backHandler.remove();
   }, [isDrawerOpen]);
-
-  // Load data from Firestore
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      if (user?.uid) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            if (data.dashboard) {
-              setDashboardData(data.dashboard);
-            }
-            if (data.subjects) {
-              setSubjects(data.subjects);
-            }
-          }
-          // Save visit
-          await setDoc(doc(db, 'users', user.uid, 'screens', 'dashboard'), {
-            lastVisited: serverTimestamp(),
-          }, { merge: true });
-        } catch (error) {
-          console.log('Error loading dashboard data:', error);
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        setLoading(false);
-      }
-    };
-    loadDashboardData();
-  }, [user]);
 
   // Handle logout
   const handleLogout = () => {
@@ -137,14 +109,6 @@ const Dashboard = () => {
     }
   ]
 
-  if (loading) {
-    return (
-      <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
-    );
-  }
-
   return (
     <View className="flex-1">
       {/* Header */}
@@ -173,39 +137,56 @@ const Dashboard = () => {
         contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Subject Cards */}
+        {/* Today's Classes */}
+        <Text className="text-lg font-bold mb-4" style={{ color: theme.text }}>Today's Classes - {today}</Text>
         <View className="gap-4 mb-8">
-          {subjects.map((subject, index) => (
+          {todayClasses.length > 0 ? (
+            todayClasses.map((classItem, index) => (
+              <View 
+                key={index}
+                className="p-5 rounded-2xl flex-row items-center"
+                style={{ 
+                  backgroundColor: theme.surface,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  shadowColor: theme.shadow,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 8,
+                  elevation: 4
+                }}
+              >
+                <View 
+                  className="w-16 h-16 rounded-2xl items-center justify-center mr-4"
+                  style={{ 
+                    backgroundColor: (classItem.color || theme.primary) + '15',
+                    borderWidth: 2,
+                    borderColor: (classItem.color || theme.primary) + '30'
+                  }}
+                >
+                  <Ionicons name={classItem.icon || 'book'} size={32} color={classItem.color || theme.primary} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-xl font-bold mb-1" style={{ color: theme.text }}>{classItem.subject}</Text>
+                  <Text className="text-sm" style={{ color: theme.textSecondary }}>{classItem.time}</Text>
+                  <Text className="text-xs mt-1" style={{ color: theme.textTertiary }}>{classItem.room} • {classItem.professor}</Text>
+                </View>
+              </View>
+            ))
+          ) : (
             <View 
-              key={index}
-              className="p-5 rounded-2xl flex-row items-center"
+              className="p-8 rounded-2xl items-center"
               style={{ 
                 backgroundColor: theme.surface,
                 borderWidth: 1,
                 borderColor: theme.border,
-                shadowColor: theme.shadow,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.1,
-                shadowRadius: 8,
-                elevation: 4
               }}
             >
-              <View 
-                className="w-16 h-16 rounded-2xl items-center justify-center mr-4"
-                style={{ 
-                  backgroundColor: theme.primary + '15',
-                  borderWidth: 2,
-                  borderColor: theme.primary + '30'
-                }}
-              >
-                <Ionicons name={subject.icon} size={32} color={theme.primary} />
-              </View>
-              <View className="flex-1">
-                <Text className="text-xl font-bold mb-1" style={{ color: theme.text }}>{subject.name}</Text>
-                <Text className="text-sm" style={{ color: theme.textSecondary }}>{subject.time}</Text>
-              </View>
+              <Ionicons name="calendar-outline" size={48} color={theme.textTertiary} />
+              <Text className="text-lg font-medium mt-3" style={{ color: theme.textSecondary }}>No Classes Today</Text>
+              <Text className="text-sm mt-1" style={{ color: theme.textTertiary }}>Enjoy your day off!</Text>
             </View>
-          ))}
+          )}
         </View>
         
         {/* Quick Stats */}

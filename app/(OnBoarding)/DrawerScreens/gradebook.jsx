@@ -1,49 +1,26 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../../context/useAuth';
 import { useTheme } from '../../../context/useTheme';
-import { db } from '../../../firebaseConfig';
 
 const gradebook = () => {
   const router = useRouter();
   const { theme } = useTheme();
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const { userData } = useAuth();
   const [selectedSemester, setSelectedSemester] = useState('');
-  const [semesters, setSemesters] = useState([]);
-  const [semesterData, setSemesterData] = useState({});
-
-  // Load gradebook from Firestore
+  
+  // Get data from centralized userData
+  const semesterData = userData?.gradebook || {};
+  const semesters = Object.keys(semesterData);
+  
+  // Set default semester on mount
   useEffect(() => {
-    const loadGradebook = async () => {
-      if (user?.uid) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            if (data.gradebook) {
-              setSemesterData(data.gradebook);
-              const semesterList = Object.keys(data.gradebook);
-              setSemesters(semesterList);
-              if (semesterList.length > 0) {
-                setSelectedSemester(semesterList[0]);
-              }
-            }
-          }
-        } catch (error) {
-          console.log('Error loading gradebook:', error);
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        setLoading(false);
-      }
-    };
-    loadGradebook();
-  }, [user]);
+    if (semesters.length > 0 && !selectedSemester) {
+      setSelectedSemester(semesters[0]);
+    }
+  }, [semesters]);
   
   const currentSemesterGrades = semesterData[selectedSemester] || [];
   const totalCredits = currentSemesterGrades.reduce((sum, subject) => sum + subject.credits, 0);
@@ -55,14 +32,6 @@ const gradebook = () => {
     if (grade.startsWith('C')) return '#EF4444';
     return '#6B7280';
   };
-
-  if (loading) {
-    return (
-      <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
-    );
-  }
   
   return (
     <View className="flex-1">

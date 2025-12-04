@@ -1,83 +1,124 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { uploadToCloudinary } from '../../cloudinaryConfig';
 import { useAuth } from '../../context/useAuth';
 import { useTheme } from '../../context/useTheme';
-import { db } from '../../firebaseConfig';
 
 const Profile = () => {
   const router = useRouter();
   const { theme } = useTheme();
-  const { user, updateUserProfile } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [profileData, setProfileData] = useState({
+  const { userData, updateUserProfile } = useAuth();
+  const [uploading, setUploading] = useState(false);
+  
+  // Get profile data from centralized userData
+  const profileData = userData?.profile || {
     name: '',
     email: '',
     address: '',
-    dob: ''
-  });
+    dob: '',
+    profilePicture: ''
+  };
 
-  // Load profile data from Firestore
-  useEffect(() => {
-    const loadProfileData = async () => {
-      if (user?.uid) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            if (data.profile) {
-              setProfileData(data.profile);
-            } else {
-              // Fallback to root level data
-              setProfileData({
-                name: data.displayName || '',
-                email: data.email || '',
-                address: data.address || '',
-                dob: data.dob || ''
-              });
-            }
-          }
-          // Save profile visit
-          await setDoc(doc(db, 'users', user.uid, 'screens', 'profile'), {
-            lastVisited: serverTimestamp(),
-          }, { merge: true });
-        } catch (error) {
-          console.log('Error loading profile data:', error);
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        setLoading(false);
+  // Pick image from gallery
+  const pickImage = async () => {
+    try {
+      // Request permission
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'We need camera roll permissions to change your profile picture.');
+        return;
       }
-    };
-    loadProfileData();
-  }, [user]);
 
-  // Save profile changes
-  const handleSaveChanges = async () => {
-    if (user?.uid) {
-      try {
-        await setDoc(doc(db, 'users', user.uid), {
-          profile: profileData,
-          updatedAt: serverTimestamp(),
-        }, { merge: true });
-        Alert.alert('Success', 'Profile saved successfully!');
-      } catch (error) {
-        Alert.alert('Error', 'Failed to save profile');
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await uploadProfilePicture(result.assets[0].uri);
       }
+    } catch (error) {
+      console.error('Image picker error:', error);
+      Alert.alert('Error', 'Failed to pick image');
     }
   };
 
-  if (loading) {
-    return (
-      <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
+  // Take photo with camera
+  const takePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'We need camera permissions to take a photo.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await uploadProfilePicture(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Camera error:', error);
+      Alert.alert('Error', 'Failed to take photo');
+    }
+  };
+
+  // Upload image to Cloudinary and save URL
+  const uploadProfilePicture = async (imageUri) => {
+    setUploading(true);
+    try {
+      const { url } = await uploadToCloudinary(imageUri);
+      
+      // Update profile with new picture URL
+      await updateUserProfile({ 
+        profile: { 
+          ...profileData, 
+          profilePicture: url 
+        } 
+      });
+      
+      Alert.alert('Success', 'Profile picture updated!');
+    } catch (error) {
+      console.error('Upload error:', error);
+      Alert.alert('Error', error.message || 'Failed to upload image');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Show options for changing profile picture
+  const handleChangeProfilePicture = () => {
+    Alert.alert(
+      'Change Profile Picture',
+      'Choose an option',
+      [
+        { text: 'Take Photo', onPress: takePhoto },
+        { text: 'Choose from Gallery', onPress: pickImage },
+        { text: 'Cancel', style: 'cancel' },
+      ]
     );
-  }
+  };
+
+  // Save profile changes
+  const handleSaveChanges = async () => {
+    try {
+      await updateUserProfile({ profile: profileData });
+      Alert.alert('Success', 'Profile saved successfully!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save profile');
+    }
+  };
 
   return (
     <View className="flex-1">
@@ -91,37 +132,41 @@ const Profile = () => {
                 <Text className="font-semibold text-xl flex-1" style={{ color: theme.textInverse }}>Profile</Text>
               </View>
             </View>
-            {/* Edit Button */}
+            {/* Content */}
             <View className="flex-1 p-6" style={{ backgroundColor: theme.background }}>
-              <View className="flex-row justify-end mb-6">
-                <TouchableOpacity 
-                  className="flex-row items-center px-4 py-2 rounded-lg" 
-                  style={{ 
-                    backgroundColor: theme.primary,
-                    borderWidth: 1,
-                    borderColor: theme.primary,
-                    shadowColor: theme.shadow,
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.15,
-                    shadowRadius: 4,
-                    elevation: 3
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="create-outline" size={20} color={theme.textInverse} />
-                  <Text className="ml-2 font-medium" style={{ color: theme.textInverse }}>Edit</Text>
-                </TouchableOpacity>
-              </View>
               
               <View className="flex justify-center items-center mb-6">
                 {/* Profile Picture */}
-                <View className="w-40 h-40 rounded-full border-4 overflow-hidden" style={{ borderColor: theme.border }}>
-                  <Image
-                  source={require('../../assets/images/Illustration-1.png')}
-                  style={{ width: 160, height: 160 }}
-                  contentFit="cover"
-                  />
-                </View>
+                <TouchableOpacity 
+                  onPress={handleChangeProfilePicture}
+                  disabled={uploading}
+                  activeOpacity={0.8}
+                >
+                  <View className="w-40 h-40 rounded-full border-4 overflow-hidden" style={{ borderColor: theme.border }}>
+                    {uploading ? (
+                      <View className="w-full h-full items-center justify-center" style={{ backgroundColor: theme.surface }}>
+                        <ActivityIndicator size="large" color={theme.primary} />
+                        <Text className="text-xs mt-2" style={{ color: theme.textSecondary }}>Uploading...</Text>
+                      </View>
+                    ) : (
+                      <Image
+                        source={profileData.profilePicture 
+                          ? { uri: profileData.profilePicture } 
+                          : require('../../assets/images/Illustration-1.png')
+                        }
+                        style={{ width: 160, height: 160 }}
+                        contentFit="cover"
+                      />
+                    )}
+                  </View>
+                  {/* Camera Icon Overlay */}
+                  <View 
+                    className="absolute bottom-0 right-0 w-10 h-10 rounded-full items-center justify-center"
+                    style={{ backgroundColor: theme.primary }}
+                  >
+                    <Ionicons name="camera" size={20} color={theme.textInverse} />
+                  </View>
+                </TouchableOpacity>
               </View>
               
               {/* User Information [name]*/}

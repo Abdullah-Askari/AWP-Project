@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { arrayUnion, doc, getDoc, setDoc } from 'firebase/firestore';
+import { arrayUnion, doc, setDoc } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../../context/useAuth';
@@ -10,8 +10,7 @@ import { db } from '../../../firebaseConfig';
 const Feedback = () => {
   const router = useRouter();
   const { theme } = useTheme();
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const { user, userData } = useAuth();
   const [selectedTab, setSelectedTab] = useState('received');
   const [newFeedback, setNewFeedback] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
@@ -21,35 +20,10 @@ const Feedback = () => {
   const [submitting, setSubmitting] = useState(false);
   const scrollViewRef = useRef(null);
   const textInputRef = useRef(null);
-  const [receivedFeedback, setReceivedFeedback] = useState([]);
-  const [subjects, setSubjects] = useState([]);
-
-  // Load feedback from Firestore
-  useEffect(() => {
-    const loadFeedbackData = async () => {
-      if (user?.uid) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            if (data.feedback) {
-              setReceivedFeedback(data.feedback);
-            }
-            if (data.subjects) {
-              setSubjects(data.subjects.map(s => s.name));
-            }
-          }
-        } catch (error) {
-          console.log('Error loading feedback:', error);
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        setLoading(false);
-      }
-    };
-    loadFeedbackData();
-  }, [user]);
+  
+  // Get data from centralized userData
+  const receivedFeedback = userData?.feedback || [];
+  const subjects = userData?.subjects?.map(s => s.name) || [];
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
@@ -76,14 +50,6 @@ const Feedback = () => {
       keyboardDidShowListener?.remove();
     };
   }, []);
-  
-  if (loading) {
-    return (
-      <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
-    );
-  }
   
   const getRatingColor = (rating) => {
     if (rating >= 4) return '#10B981';

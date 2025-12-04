@@ -1,54 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../context/useAuth';
 import { useTheme } from '../../context/useTheme';
-import { db } from '../../firebaseConfig';
 
 const Notification = () => {
   const router = useRouter();
   const { theme } = useTheme();
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [notificationList, setNotificationList] = useState([]);
-
-  // Load notifications from Firestore
-  useEffect(() => {
-    const loadNotifications = async () => {
-      if (user?.uid) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            if (data.notifications) {
-              setNotificationList(data.notifications);
-            }
-          }
-          // Save visit
-          await setDoc(doc(db, 'users', user.uid, 'screens', 'notifications'), {
-            lastVisited: serverTimestamp(),
-          }, { merge: true });
-        } catch (error) {
-          console.log('Error loading notifications:', error);
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        setLoading(false);
-      }
-    };
-    loadNotifications();
-  }, [user]);
-
-  if (loading) {
-    return (
-      <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
-    );
-  }
+  const { userData } = useAuth();
+  
+  // Get notifications from centralized userData
+  const notificationList = userData?.notifications || [];
   
   return (
     <View className="flex-1">

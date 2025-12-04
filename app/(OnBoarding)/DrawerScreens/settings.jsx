@@ -1,8 +1,7 @@
-import { View, Text, Pressable, StatusBar, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native'
-import React, { useState } from 'react'
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useTheme } from '../../../context/useTheme'
+import { Pressable, StatusBar, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '../../../context/useTheme';
 
 const Settings = () => {
   const router = useRouter();
@@ -10,13 +9,6 @@ const Settings = () => {
 
   const handleThemeToggle = async () => {
     await toggleTheme();
-    
-    // Show feedback to user
-    Alert.alert(
-      'Theme Changed', 
-      `Switched to ${!isDarkMode ? 'Dark' : 'Light'} mode`,
-      [{ text: 'OK' }]
-    );
   };
 
   return (
@@ -75,21 +67,6 @@ const Settings = () => {
               style={{ transform: [{ scaleX: 1.2 }, { scaleY: 1.2 }] }}
             />
           </TouchableOpacity>
-        </View>
-        
-        {/* Theme Preview */}
-        <View className="mt-6">
-          <Text className="text-lg font-semibold mb-3 px-2" style={{ color: theme.text }}>
-            Preview
-          </Text>
-          <View className="rounded-xl p-4 shadow-sm" style={{ backgroundColor: theme.surface }}>
-            <Text className="text-base font-medium mb-2" style={{ color: theme.text }}>
-              Current Theme: {isDarkMode ? 'Dark Mode' : 'Light Mode'}
-            </Text>
-            <Text className="text-sm" style={{ color: theme.textSecondary }}>
-              This is how your app will look with the selected theme. Toggle the switch above to see the difference.
-            </Text>
-          </View>
         </View>
       </View>
     </View>

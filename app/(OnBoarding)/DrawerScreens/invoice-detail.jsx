@@ -1,57 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StatusBar, Text, View } from 'react-native';
+import { Pressable, ScrollView, StatusBar, Text, View } from 'react-native';
 import { useAuth } from '../../../context/useAuth';
 import { useTheme } from '../../../context/useTheme';
-import { db } from '../../../firebaseConfig';
 
 const InvoiceDetail = () => {
   const router = useRouter();
   const { theme } = useTheme();
-  const { user } = useAuth();
+  const { userData } = useAuth();
   const { invoiceId } = useLocalSearchParams();
-  const [loading, setLoading] = useState(true);
-  const [invoice, setInvoice] = useState(null);
-
-  // Load invoice details from Firestore
-  useEffect(() => {
-    const loadInvoiceDetail = async () => {
-      if (user?.uid && invoiceId) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            if (data.invoices) {
-              // Find the invoice in all years
-              for (const year of Object.keys(data.invoices)) {
-                const found = data.invoices[year].find(inv => inv.id === invoiceId);
-                if (found) {
-                  setInvoice(found);
-                  break;
-                }
-              }
-            }
-          }
-        } catch (error) {
-          console.log('Error loading invoice:', error);
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        setLoading(false);
-      }
-    };
-    loadInvoiceDetail();
-  }, [user, invoiceId]);
-
-  if (loading) {
-    return (
-      <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
-    );
+  
+  // Find invoice from centralized userData
+  const invoiceData = userData?.invoices || {};
+  let invoice = null;
+  for (const year of Object.keys(invoiceData)) {
+    const found = invoiceData[year].find(inv => inv.id === invoiceId);
+    if (found) {
+      invoice = found;
+      break;
+    }
   }
 
   if (!invoice) {

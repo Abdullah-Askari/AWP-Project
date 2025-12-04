@@ -1,50 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../../context/useAuth';
 import { useTheme } from '../../../context/useTheme';
-import { db } from '../../../firebaseConfig';
 
 const invoices = () => {
   const router = useRouter();
   const { theme } = useTheme();
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [invoiceData, setInvoiceData] = useState({});
-
-  // Load invoices from Firestore
-  useEffect(() => {
-    const loadInvoices = async () => {
-      if (user?.uid) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            if (data.invoices) {
-              setInvoiceData(data.invoices);
-            }
-          }
-        } catch (error) {
-          console.log('Error loading invoices:', error);
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        setLoading(false);
-      }
-    };
-    loadInvoices();
-  }, [user]);
-
-  if (loading) {
-    return (
-      <View className="flex-1 justify-center items-center" style={{ backgroundColor: theme.background }}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
-    );
-  }
+  const { userData } = useAuth();
+  
+  // Get data from centralized userData
+  const invoiceData = userData?.invoices || {};
 
   return (
     <View
