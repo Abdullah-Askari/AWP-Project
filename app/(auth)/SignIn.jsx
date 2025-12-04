@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../context/useAuth';
 import { useTheme } from '../../context/useTheme';
+import KeyboardView from '../components/KeyboardView';
 
 const SignIn = () => {
   const [email, setEmail] = useState('');
@@ -32,12 +33,13 @@ const SignIn = () => {
   };
 
   return (
-    <View className="flex-1 justify-center items-center pt-8" style={{ backgroundColor: theme.background }}>
-      <Image
-        source={require("../../assets/images/signIn.png")}
-        style={{ width: 142, height: 142 }}
-        contentFit="contain"
-      />
+    <KeyboardView>
+      <View className="flex-1 justify-center items-center pt-8" style={{ backgroundColor: theme.background }}>
+        <Image
+          source={require("../../assets/images/signIn.png")}
+          style={{ width: 142, height: 142 }}
+          contentFit="contain"
+        />
 
       <Text
         style={{
@@ -209,6 +211,7 @@ const SignIn = () => {
         </View>
       </View>
     </View>
+    </KeyboardView>
   );
 };
 

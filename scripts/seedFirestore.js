@@ -119,6 +119,13 @@ const profile = {
   semester: "7th",
 };
 
+const dashboard = {
+  grades: "88%",
+  attendance: "92%",
+  pendingFees: "PKR 125,000",
+  dueDate: "Dec 15, 2024"
+};
+
 // User document path
 const USER_ID = "yRS0HjxXOSVU6xlSqpMKy25nWx02";
 const userDocPath = `users/${USER_ID}`;
@@ -132,6 +139,7 @@ async function seedFirestore() {
     console.log("Seeding all data to user document...");
     await setDoc(doc(db, userDocPath), {
       profile: profile,
+      dashboard: dashboard,
       subjects: subjects,
       notifications: notifications,
       feedback: feedback,
@@ -141,6 +149,7 @@ async function seedFirestore() {
       schedule: schedule,
     }, { merge: true });
     
+    console.log("✓ Dashboard seeded successfully");
     console.log("✓ Subjects seeded successfully");
     console.log("✓ Notifications seeded successfully");
     console.log("✓ Feedback seeded successfully");

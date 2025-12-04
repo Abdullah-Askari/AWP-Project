@@ -79,12 +79,24 @@ const Dashboard = () => {
   }, [user]);
 
   // Handle logout
-  const handleLogout = async () => {
-    const result = await signOut();
-    Alert.alert('Logged Out', 'You have been logged out successfully.');
-    if (result.success) {
-      router.replace('/(auth)/SignIn');
-    }
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Logout', 
+          style: 'destructive',
+          onPress: async () => {
+            const result = await signOut();
+            if (result.success) {
+              router.replace('/(auth)/SignIn');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const toggleDrawer = () => {
@@ -360,13 +372,15 @@ const Dashboard = () => {
               activeOpacity={0.7}
               onPress={handleLogout}
             >
-              <View className="w-10 h-10 rounded-lg items-center justify-center mr-4">
-                <Image
-                  source={require('../../assets/images/Logout Icon.png')}
-                  style={{ width: 20, height: 20 }}
-                />
+              <View 
+                className="w-10 h-10 rounded-lg items-center justify-center mr-4"
+                style={{ backgroundColor: theme.error + '20' }}
+              >
+                <Ionicons name="log-out-outline" size={20} color={theme.error} />
               </View>
-              <Text className="text-lg font-medium" style={{ color: theme.text }}>Logout</Text>
+              <Text className="text-lg font-medium" style={{ color: theme.error }}>Logout</Text>
+              <View className="flex-1" />
+              <Ionicons name="chevron-forward" size={20} color={theme.error} />
             </TouchableOpacity>
           </View>
         </ScrollView>

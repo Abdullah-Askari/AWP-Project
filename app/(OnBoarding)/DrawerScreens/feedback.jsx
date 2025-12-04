@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
+import { arrayUnion, doc, getDoc, setDoc } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../../context/useAuth';
 import { useTheme } from '../../../context/useTheme';
 import { db } from '../../../firebaseConfig';
@@ -15,8 +15,10 @@ const Feedback = () => {
   const [selectedTab, setSelectedTab] = useState('received');
   const [newFeedback, setNewFeedback] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [rating, setRating] = useState(0);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const scrollViewRef = useRef(null);
   const textInputRef = useRef(null);
   const [receivedFeedback, setReceivedFeedback] = useState([]);
@@ -54,18 +56,19 @@ const Feedback = () => {
       setKeyboardVisible(true);
       // Scroll to the text input when keyboard appears
       setTimeout(() => {
-        if (scrollViewRef.current && textInputRef.current) {
-          textInputRef.current.measure((x, y, width, height, pageX, pageY) => {
-            scrollViewRef.current.scrollTo({
-              y: pageY - 100,
-              animated: true,
-            });
-          });
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollToEnd({ animated: true });
         }
       }, 100);
     });
     const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
       setKeyboardVisible(false);
+      // Scroll down to show submit button when keyboard closes
+      setTimeout(() => {
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollToEnd({ animated: true });
+        }
+      }, 100);
     });
 
     return () => {
@@ -99,18 +102,49 @@ const Feedback = () => {
     }
   };
   
-  const handleSubmitFeedback = () => {
-    if (newFeedback.trim() && selectedSubject && rating > 0) {
-      console.log('Feedback submitted:', {
+  const handleSubmitFeedback = async () => {
+    if (!selectedSubject || rating === 0) {
+      Alert.alert('Error', 'Please select a subject and rating');
+      return;
+    }
+    
+    if (!user?.uid) {
+      Alert.alert('Error', 'You must be logged in to submit feedback');
+      return;
+    }
+    
+    setSubmitting(true);
+    try {
+      const feedbackData = {
+        id: Date.now().toString(),
         subject: selectedSubject,
+        category: selectedCategory || 'General',
         rating: rating,
-        message: newFeedback
-      });
+        message: newFeedback.trim(),
+        type: 'Submitted',
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        createdAt: new Date().toISOString(),
+        color: '#4F46E5'
+      };
+      
+      await setDoc(doc(db, 'users', user.uid), {
+        submittedFeedback: arrayUnion(feedbackData)
+      }, { merge: true });
+      
+      Alert.alert('Success', 'Your feedback has been submitted successfully!', [
+        { text: 'OK', onPress: () => setSelectedTab('received') }
+      ]);
+      
       // Reset form
       setNewFeedback('');
       setSelectedSubject('');
+      setSelectedCategory('');
       setRating(0);
-      // Show success message or navigate
+    } catch (error) {
+      console.log('Error submitting feedback:', error);
+      Alert.alert('Error', 'Failed to submit feedback. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
   
@@ -163,8 +197,8 @@ const Feedback = () => {
       {/* Content */}
       <KeyboardAvoidingView 
         className="flex-1" 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 20}
       >
         <ScrollView 
           ref={scrollViewRef}
@@ -172,7 +206,8 @@ const Feedback = () => {
           style={{ backgroundColor: theme.background }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: isKeyboardVisible ? 300 : 20 }}
+          contentContainerStyle={{ paddingBottom: isKeyboardVisible ? 350 : 20 }}
+          automaticallyAdjustKeyboardInsets={true}
         >
           {selectedTab === 'received' ? (
           <View className="p-6">
@@ -280,10 +315,15 @@ const Feedback = () => {
                 {['Course Content', 'Teaching Method', 'Assignments', 'Lab Sessions', 'Overall Experience'].map((category) => (
                   <TouchableOpacity
                     key={category}
+                    onPress={() => setSelectedCategory(category)}
                     className="px-3 py-2 rounded-full"
-                    style={{ backgroundColor: theme.backgroundSecondary }}
+                    style={{ 
+                      backgroundColor: selectedCategory === category ? theme.primary : theme.backgroundSecondary 
+                    }}
                   >
-                    <Text className="text-sm" style={{ color: theme.text }}>{category}</Text>
+                    <Text className="text-sm" style={{ 
+                      color: selectedCategory === category ? theme.textInverse : theme.text 
+                    }}>{category}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -315,7 +355,7 @@ const Feedback = () => {
               
               {/* Feedback Text */}
               <Text className="font-semibold mb-3" style={{ color: theme.text }}>
-                <Ionicons name="chatbubble-outline" size={16} color={theme.textSecondary} /> Your Detailed Feedback *
+                <Ionicons name="chatbubble-outline" size={16} color={theme.textSecondary} /> Your Detailed Feedback (Optional)
               </Text>
               <View className="relative" ref={textInputRef}>
                 <TextInput
@@ -352,55 +392,33 @@ const Feedback = () => {
                 </View>
               </View>
               
-              {/* Validation message */}
-              <View className="flex-row items-center mb-6">
-                <Ionicons 
-                  name={newFeedback.length >= 20 ? "checkmark-circle" : "information-circle-outline"} 
-                  size={16} 
-                  color={newFeedback.length >= 20 ? theme.success : theme.textSecondary} 
-                />
-                <Text className="text-xs ml-2" style={{
-                  color: newFeedback.length >= 20 ? theme.success : theme.textSecondary
-                }}>
-                  {newFeedback.length >= 20 
-                    ? 'Great! Your feedback meets the minimum requirement.' 
-                    : 'Minimum 20 characters required (' + (20 - newFeedback.length) + ' more needed)'
-                  }
-                </Text>
-              </View>
-              
-              {/* Anonymous Option */}
-              <View className="flex-row items-center justify-between mb-6 p-4 rounded-lg" style={{ backgroundColor: theme.backgroundSecondary }}>
-                <View className="flex-1">
-                  <Text className="font-medium" style={{ color: theme.text }}>Submit Anonymously</Text>
-                  <Text className="text-sm" style={{ color: theme.textSecondary }}>Your identity will not be shared with instructors</Text>
-                </View>
-                <TouchableOpacity className="w-12 h-6 rounded-full p-1" style={{ backgroundColor: theme.primary }}>
-                  <View className="w-4 h-4 rounded-full ml-auto" style={{ backgroundColor: theme.textInverse }} />
-                </TouchableOpacity>
-              </View>
-              
               {/* Submit Button */}
               <TouchableOpacity
                 onPress={handleSubmitFeedback}
                 className="rounded-lg py-4 px-6 flex-row items-center justify-center shadow-sm"
                 style={{
-                  backgroundColor: newFeedback.trim().length >= 20 && selectedSubject && rating > 0 
+                  backgroundColor: selectedSubject && rating > 0 && !submitting
                     ? theme.primary 
                     : theme.border
                 }}
-                disabled={newFeedback.trim().length < 20 || !selectedSubject || rating === 0}
+                disabled={!selectedSubject || rating === 0 || submitting}
               >
-                <Ionicons 
-                  name="send-outline" 
-                  size={20} 
-                  color={newFeedback.trim().length >= 20 && selectedSubject && rating > 0 ? theme.textInverse : theme.textTertiary} 
-                />
-                <Text className="font-semibold ml-2" style={{
-                  color: newFeedback.trim().length >= 20 && selectedSubject && rating > 0 ? theme.textInverse : theme.textTertiary
-                }}>
-                  Submit Feedback
-                </Text>
+                {submitting ? (
+                  <ActivityIndicator size="small" color={theme.textInverse} />
+                ) : (
+                  <>
+                    <Ionicons 
+                      name="send-outline" 
+                      size={20} 
+                      color={selectedSubject && rating > 0 ? theme.textInverse : theme.textTertiary} 
+                    />
+                    <Text className="font-semibold ml-2" style={{
+                      color: selectedSubject && rating > 0 ? theme.textInverse : theme.textTertiary
+                    }}>
+                      Submit Feedback
+                    </Text>
+                  </>
+                )}
               </TouchableOpacity>
               
               {/* Help Text */}

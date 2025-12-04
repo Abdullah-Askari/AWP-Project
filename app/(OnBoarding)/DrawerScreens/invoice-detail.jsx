@@ -150,7 +150,7 @@ const InvoiceDetail = () => {
             <Text className="text-xl font-bold mb-4" style={{ color: theme.text }}>Fee Breakdown</Text>
             
             <View className="gap-3">
-              {invoice.breakdown.map((item, index) => (
+              {invoice.breakdown?.map((item, index) => (
                 <View key={index} className="flex-row items-center justify-between py-2">
                   <Text className="flex-1" style={{ color: theme.textSecondary }}>{item.item}</Text>
                   <Text className="font-semibold" style={{ color: theme.text }}>{item.amount}</Text>
