@@ -1,4 +1,4 @@
-package com.ucp.portal.app
+package com.abdullah.ucpportal
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
@@ -49,17 +49,7 @@ class MainActivity : ReactActivity() {
     * where moving root activities to background instead of finishing activities.
     * @see <a href="https://developer.android.com/reference/android/app/Activity#onBackPressed()">onBackPressed</a>
     */
-  override fun invokeDefaultOnBackPressed() {
-      if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R) {
-          if (!moveTaskToBack(false)) {
-              // For non-root activities, use the default implementation to finish them.
-              super.invokeDefaultOnBackPressed()
-          }
-          return
-      }
-
-      // Use the default back button implementation on Android S
-      // because it's doing more than [Activity.moveTaskToBack] in fact.
-      super.invokeDefaultOnBackPressed()
+  override fun onBackPressed() {
+    reactDelegate?.onBackPressed() ?: super.onBackPressed()
   }
 }

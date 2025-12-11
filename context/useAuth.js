@@ -11,6 +11,7 @@ import {
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { auth, db } from '../firebaseConfig';
+import { configureGoogleSignIn, signInWithGoogle as nativeGoogleSignIn } from '../googleSignInConfig';
 
 const AuthContext = createContext({});
 
@@ -20,6 +21,15 @@ export const AuthProvider = ({ children }) => {
   const [userData, setUserData] = useState(null);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(null);
   const dataFetchedRef = useRef(false);
+
+  // Initialize Google Sign-In on mount
+  useEffect(() => {
+    try {
+      configureGoogleSignIn();
+    } catch (error) {
+      console.log('Error configuring Google Sign-In:', error);
+    }
+  }, []);
 
   // Fetch all user data from Firestore once
   const fetchUserData = async (uid) => {
@@ -123,8 +133,18 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Sign in with Google
-  const signInWithGoogle = async (idToken, accessToken) => {
+  const signInWithGoogle = async () => {
     try {
+      // Get credentials from native Google Sign-In
+      const googleResult = await nativeGoogleSignIn();
+      
+      if (!googleResult.success) {
+        return { success: false, error: googleResult.error };
+      }
+
+      const { idToken, accessToken } = googleResult.userInfo;
+      
+      // Sign in to Firebase with Google credentials
       const credential = GoogleAuthProvider.credential(idToken, accessToken);
       const userCredential = await signInWithCredential(auth, credential);
       const { user: firebaseUser } = userCredential;
@@ -143,6 +163,7 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true, user: firebaseUser };
     } catch (error) {
+      console.log('Firebase Google Sign-In error:', error);
       return { success: false, error: error.message };
     }
   };
@@ -234,6 +255,38 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Save notification to user's notifications list
+  const saveNotification = async (notification) => {
+    if (!user?.uid) return { success: false, error: 'No user logged in' };
+    
+    try {
+      // Add notification with timestamp and ID
+      const newNotification = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        ...notification
+      };
+
+      // Get current notifications
+      const currentNotifications = userData?.notifications || [];
+      const updatedNotifications = [newNotification, ...currentNotifications].slice(0, 50); // Keep last 50
+
+      // Update Firestore
+      await setDoc(doc(db, 'users', user.uid), {
+        notifications: updatedNotifications,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      // Update local state
+      setUserData(prev => ({ ...prev, notifications: updatedNotifications }));
+      return { success: true };
+    } catch (error) {
+      console.log('Error saving notification:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -250,6 +303,7 @@ export const AuthProvider = ({ children }) => {
       forgetPassword,
       saveScreenData,
       getScreenData,
+      saveNotification,
       completeOnboarding,
     }}>
       {children}

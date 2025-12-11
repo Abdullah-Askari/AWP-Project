@@ -7,18 +7,18 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:339496645684:android:916e98b95f1f4d6df54661",
+        "mobilesdk_app_id": "1:339496645684:android:85f41fcaa2541cf3f54661",
         "android_client_info": {
-          "package_name": "com.ucp.portal.app"
+          "package_name": "com.abdullah.ucpportal"
         }
       },
       "oauth_client": [
         {
-          "client_id": "339496645684-0javdpbfd4gkhlhgcot2i8ko2a6slqhv.apps.googleusercontent.com",
+          "client_id": "339496645684-7c1c8vhjhnk09jm64dnthb9u3kqga4dv.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.ucp.portal.app",
-            "certificate_hash": "c7c4e132e4f6afcf3f84a87ad6f7922fda18b0aa"
+            "package_name": "com.abdullah.ucpportal",
+            "certificate_hash": "d6c9c3401a7e6d823fd6fee5d4ed96ab7feef495"
           }
         },
         {

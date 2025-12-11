@@ -18,8 +18,8 @@
         "foregroundImage": "./assets/images/App_Icon.png"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.ucp.portal.app",
-      "googleServicesFile": "./google-services.json"
+      "package": "com.abdullah.ucpportal",
+      "googleServicesFile": "./android/app/google-services.json"
     },
     "web": {
       "output": "static",
@@ -30,6 +30,16 @@
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       "@react-native-firebase/crashlytics",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/App_Icon.png",
+          "color": "#ffffff",
+          "sounds": [
+            "./assets/notification-sound.mp3"
+          ]
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -43,6 +53,7 @@
         }
       ],
       "expo-web-browser"
+
     ],
     "experiments": {
       "typedRoutes": true

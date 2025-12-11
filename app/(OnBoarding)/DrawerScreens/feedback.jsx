@@ -419,6 +419,18 @@ const Feedback = () => {
         )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/*  Loading Overlay */}
+      {submitting && (
+        <View className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}>
+          <View className="bg-white rounded-2xl p-8 items-center shadow-lg" style={{ backgroundColor: theme.surface }}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text className="mt-4 font-semibold text-center" style={{ color: theme.text }}>
+              Submitting Feedback...
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   )
 }

@@ -1,4 +1,4 @@
-package com.ucp.portal.app
+package com.abdullah.ucpportal
 
 import android.app.Application
 import android.content.res.Configuration

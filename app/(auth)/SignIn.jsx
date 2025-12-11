@@ -1,18 +1,45 @@
 import { Image } from 'expo-image';
+import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../context/useAuth';
 import { useTheme } from '../../context/useTheme';
 import KeyboardView from '../components/KeyboardView';
 
+// Configure notification handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
+
 const SignIn = () => {
   const emailRef = useRef('');
   const passwordRef = useRef('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
   const { theme } = useTheme();
+
+  // Request notification permissions on mount
+  useEffect(() => {
+    requestNotificationPermissions();
+  }, []);
+
+  const requestNotificationPermissions = async () => {
+    try {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Notification permission not granted');
+      }
+    } catch (error) {
+      console.log('Error requesting notification permissions:', error);
+    }
+  };
 
   // Email/Password login
   const handleLogin = async () => {
@@ -29,6 +56,19 @@ const SignIn = () => {
       router.replace('/(home)/Dashboard');
     } else {
       Alert.alert('Login Failed', result.error);
+    }
+  };
+
+  // Google login
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    const result = await signInWithGoogle();
+    setGoogleLoading(false);
+
+    if (result.success) {
+      router.replace('/(home)/Dashboard');
+    } else {
+      Alert.alert('Google Login Failed', result.error || 'An error occurred during Google login');
     }
   };
 
@@ -156,29 +196,69 @@ const SignIn = () => {
           </Text>
 
 
-          {/* Google Sign-In (disabled for now) */}
+          {/* Google Sign-In Button */}
           <TouchableOpacity
-            onPress={() => Alert.alert('Coming Soon', 'Google sign-in will be available soon')}
+            onPress={handleGoogleLogin}
+            disabled={googleLoading}
             style={{
-              borderRadius: 8,
-              backgroundColor: theme.surface,
+              borderRadius: 4,
+              backgroundColor: '#FFFFFF',
               borderWidth: 1,
-              borderColor: theme.border,
-              paddingVertical: 12,
-              paddingHorizontal: 20,
+              borderColor: '#DADCE0',
+              paddingVertical: 11,
+              paddingHorizontal: 24,
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "center",
               marginTop: 12,
               width: "100%",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.15,
+              shadowRadius: 1,
+              elevation: 2,
             }}
           >
-            <Text style={{ fontSize: 20, marginRight: 12 }}>🔍</Text>
-            <Text
-              style={{ color: theme.text, fontWeight: "600", fontSize: 16 }}
-            >
-              Sign in with Google
-            </Text>
+            {googleLoading ? (
+              <ActivityIndicator color="#1F2937" />
+            ) : (
+              <>
+                {/* Google Official Logo  */}
+                <View 
+                  style={{ 
+                    marginRight: 12, 
+                    width: 20, 
+                    height: 20,
+                    borderRadius: 3,
+                    overflow: 'hidden',
+                    backgroundColor: '#F8F9FA',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    borderWidth: 0.5,
+                    borderColor: '#DADCE0'
+                  }}
+                >
+                  <Text style={{ 
+                    fontSize: 12, 
+                    fontWeight: '700',
+                    color: '#3C4043',
+                    letterSpacing: -0.5
+                  }}>
+                    G
+                  </Text>
+                </View>
+                <Text
+                  style={{ 
+                    color: '#3C4043',
+                    fontWeight: "500",
+                    fontSize: 15,
+                    letterSpacing: 0.5
+                  }}
+                >
+                  Login with Google
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </View>

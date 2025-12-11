@@ -1,5 +1,3 @@
-// Cloudinary Configuration
-// Sign up at https://cloudinary.com and get your credentials
 
 export const CLOUDINARY_CONFIG = {
   cloudName: 'dgmjolhbj',
