@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
@@ -21,6 +22,7 @@ const SignIn = () => {
   const passwordRef = useRef('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const router = useRouter();
   const { signIn, signInWithGoogle } = useAuth();
   const { theme } = useTheme();
@@ -137,22 +139,39 @@ const SignIn = () => {
 
         <Text style={{ color: theme.text }}>Password</Text>
 
-        <TextInput
-          placeholder="********"
-          secureTextEntry={true}
-          placeholderTextColor={theme.textTertiary}
-          defaultValue={passwordRef.current}
-          onChangeText={(text) => passwordRef.current = text}
-          style={{
-            paddingVertical: 12,
-            fontSize: 16,
-            color: theme.text,
-            marginBottom: 24,
-            borderBottomWidth: 2,
-            borderBottomColor: theme.border,
-            width: "100%",
-          }}
-        />
+        <View style={{ position: 'relative', marginBottom: 24 }}>
+          <TextInput
+            placeholder="********"
+            secureTextEntry={!passwordVisible}
+            placeholderTextColor={theme.textTertiary}
+            defaultValue={passwordRef.current}
+            onChangeText={(text) => passwordRef.current = text}
+            style={{
+              paddingVertical: 12,
+              paddingRight: 40,
+              fontSize: 16,
+              color: theme.text,
+              borderBottomWidth: 2,
+              borderBottomColor: theme.border,
+              width: "100%",
+            }}
+          />
+          <TouchableOpacity
+            onPress={() => setPasswordVisible(!passwordVisible)}
+            style={{
+              position: 'absolute',
+              right: 0,
+              top: 12,
+              padding: 8,
+            }}
+          >
+            <Ionicons
+              name={passwordVisible ? "eye" : "eye-off"}
+              size={24}
+              color={theme.textSecondary}
+            />
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
           onPress={() => {router.push('/(auth)/ForgetPassword')}}

@@ -17,7 +17,7 @@ const db = getFirestore(app);
 
 // Parse command line arguments
 const args = process.argv.slice(2);
-let USER_ID = "D0KvwixOp4gwPYGmOf1Fs9K9ctb2"; // Default user ID
+let USER_ID = "M8wKDokLsjRoAzfoHhECHZdcbbm2"; // Default user ID
 let USER_EMAIL = ""; // Will be set from args or empty
 
 // Parse arguments
@@ -137,7 +137,7 @@ const schedule = [
 ];
 
 const profile = {
-  name: "Muhammad Hassan",
+  name: "Abdullah Askari",
   email: USER_EMAIL,
   phone: "+92 321 7654321",
   address: "456 University Avenue, Lahore, Pakistan",

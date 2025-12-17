@@ -1,96 +1,84 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  createUserWithEmailAndPassword,
-  signOut as firebaseSignOut,
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-  signInWithCredential,
-  signInWithEmailAndPassword
+    createUserWithEmailAndPassword,
+    fetchSignInMethodsForEmail,
+    signOut as firebaseSignOut,
+    GoogleAuthProvider,
+    linkWithCredential,
+    onAuthStateChanged,
+    sendPasswordResetEmail,
+    signInWithCredential,
+    signInWithEmailAndPassword
 } from 'firebase/auth';
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import {
+    doc,
+    getDoc,
+    serverTimestamp,
+    setDoc
+} from 'firebase/firestore';
+import {
+    createContext,
+    useContext,
+    useEffect,
+    useRef,
+    useState
+} from 'react';
+
 import { auth, db } from '../firebaseConfig';
-import { configureGoogleSignIn, signInWithGoogle as nativeGoogleSignIn } from '../googleSignInConfig';
+import {
+    configureGoogleSignIn,
+    signInWithGoogle as nativeGoogleSignIn
+} from '../googleSignInConfig';
 
 const AuthContext = createContext({});
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(null);
+
   const dataFetchedRef = useRef(false);
 
-  // Initialize Google Sign-In on mount
+  /* -------------------- GOOGLE INIT -------------------- */
   useEffect(() => {
-    try {
-      configureGoogleSignIn();
-    } catch (error) {
-      console.log('Error configuring Google Sign-In:', error);
-    }
+    configureGoogleSignIn();
   }, []);
 
-  // Fetch all user data from Firestore once
-  const fetchUserData = async (uid) => {
-    try {
-      const userDoc = await getDoc(doc(db, 'users', uid));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        setUserData(data);
-        return data;
-      }
-      return null;
-    } catch (error) {
-      console.log('Error fetching user data:', error);
-      return null;
-    }
-  };
-
-  // Refresh user data (can be called manually if needed)
-  const refreshUserData = async () => {
-    if (user?.uid && !dataFetchedRef.current) {
-      dataFetchedRef.current = true;
-      return await fetchUserData(user.uid);
-    }
-    return userData;
-  };
-
-  // Check if user has seen onboarding
+  /* -------------------- ONBOARDING -------------------- */
   const checkOnboardingStatus = async () => {
-    try {
-      const value = await AsyncStorage.getItem('hasSeenOnboarding');
-      return value === 'true';
-    } catch {
-      return false;
-    }
+    const value = await AsyncStorage.getItem('hasSeenOnboarding');
+    return value === 'true';
   };
 
-  // Mark onboarding as complete
   const completeOnboarding = async () => {
-    try {
-      await AsyncStorage.setItem('hasSeenOnboarding', 'true');
-      setHasSeenOnboarding(true);
-    } catch (error) {
-      console.log('Error saving onboarding status:', error);
-    }
+    await AsyncStorage.setItem('hasSeenOnboarding', 'true');
+    setHasSeenOnboarding(true);
   };
 
+  /* -------------------- USER DATA -------------------- */
+  const fetchUserData = async (uid) => {
+    const snap = await getDoc(doc(db, 'users', uid));
+    if (snap.exists()) {
+      setUserData(snap.data());
+      return snap.data();
+    }
+    return null;
+  };
+
+  /* -------------------- AUTH STATE -------------------- */
   useEffect(() => {
-    // Check onboarding status on mount
-    const initOnboarding = async () => {
-      const seen = await checkOnboardingStatus();
-      setHasSeenOnboarding(seen);
-    };
-    initOnboarding();
+    (async () => {
+      setHasSeenOnboarding(await checkOnboardingStatus());
+    })();
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Get all user data from Firestore once
-        const data = await fetchUserData(firebaseUser.uid);
         setUser({ uid: firebaseUser.uid, email: firebaseUser.email });
-        setUserData(data);
-        dataFetchedRef.current = true;
+        if (!dataFetchedRef.current) {
+          await fetchUserData(firebaseUser.uid);
+          dataFetchedRef.current = true;
+        }
       } else {
         setUser(null);
         setUserData(null);
@@ -99,191 +87,127 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
-  // Sign in with email and password
+  /* -------------------- EMAIL SIGN IN -------------------- */
   const signIn = async (email, password) => {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      return { success: true, user: userCredential.user };
-    } catch (error) {
-      return { success: false, error: error.message };
+      const res = await signInWithEmailAndPassword(auth, email, password);
+      return { success: true, user: res.user };
+    } catch (e) {
+      return { success: false, error: e.message };
     }
   };
 
-  // Sign up with email and password
-  const signUp = async (email, password, additionalData = {}) => {
+  /* -------------------- EMAIL SIGN UP -------------------- */
+  const signUp = async (email, password, extra = {}) => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const { user: firebaseUser } = userCredential;
+      const res = await createUserWithEmailAndPassword(auth, email, password);
 
-      // Create user document in Firestore
-      await setDoc(doc(db, 'users', firebaseUser.uid), {
-        email: firebaseUser.email,
+      await setDoc(doc(db, 'users', res.user.uid), {
+        email,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        ...additionalData
+        ...extra
       });
 
-      return { success: true, user: firebaseUser };
-    } catch (error) {
-      return { success: false, error: error.message };
+      return { success: true, user: res.user };
+    } catch (e) {
+      return { success: false, error: e.message };
     }
   };
 
-  // Sign in with Google
+  /* -------------------- GOOGLE SIGN IN -------------------- */
   const signInWithGoogle = async () => {
     try {
-      // Get credentials from native Google Sign-In
-      const googleResult = await nativeGoogleSignIn();
-      
-      if (!googleResult.success) {
-        return { success: false, error: googleResult.error };
+      const googleRes = await nativeGoogleSignIn();
+      if (!googleRes.success) {
+        return { success: false, error: googleRes.error };
       }
 
-      const { idToken, accessToken } = googleResult.userInfo;
-      
-      // Sign in to Firebase with Google credentials
+      const { idToken, accessToken } = googleRes.userInfo;
       const credential = GoogleAuthProvider.credential(idToken, accessToken);
-      const userCredential = await signInWithCredential(auth, credential);
-      const { user: firebaseUser } = userCredential;
 
-      // Check if user document exists, if not create one
-      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-      if (!userDoc.exists()) {
-        await setDoc(doc(db, 'users', firebaseUser.uid), {
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName,
-          photoURL: firebaseUser.photoURL,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
+      try {
+        const res = await signInWithCredential(auth, credential);
+        await ensureUserDoc(res.user);
+        return { success: true, user: res.user };
+      } catch (err) {
+        if (err.code === 'auth/account-exists-with-different-credential') {
+          const email = err.customData?.email;
+          const methods = await fetchSignInMethodsForEmail(auth, email);
+
+          if (methods.includes('password')) {
+            return {
+              success: false,
+              code: 'ACCOUNT_EXISTS',
+              email,
+              error: 'Login with email/password first to link Google'
+            };
+          }
+        }
+        throw err;
       }
-
-      return { success: true, user: firebaseUser };
-    } catch (error) {
-      console.log('Firebase Google Sign-In error:', error);
-      return { success: false, error: error.message };
+    } catch (e) {
+      return { success: false, error: e.message };
     }
   };
 
-  // Sign out
+  /* -------------------- LINK GOOGLE -------------------- */
+  const linkGoogleProvider = async (email, password) => {
+    try {
+      const emailRes = await signInWithEmailAndPassword(auth, email, password);
+
+      const googleRes = await nativeGoogleSignIn();
+      if (!googleRes.success) throw new Error('Google sign-in cancelled');
+
+      const { idToken, accessToken } = googleRes.userInfo;
+      const credential = GoogleAuthProvider.credential(idToken, accessToken);
+
+      await linkWithCredential(emailRes.user, credential);
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  };
+
+  /* -------------------- FIRESTORE ENSURE -------------------- */
+  const ensureUserDoc = async (firebaseUser) => {
+    const ref = doc(db, 'users', firebaseUser.uid);
+    const snap = await getDoc(ref);
+
+    if (!snap.exists()) {
+      await setDoc(ref, {
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName || '',
+        photoURL: firebaseUser.photoURL || '',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    }
+  };
+
+  /* -------------------- LOGOUT -------------------- */
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
+      setUser(null);
       setUserData(null);
       dataFetchedRef.current = false;
       return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
+    } catch (e) {
+      return { success: false, error: e.message };
     }
   };
 
-  // Update user profile in Firestore
-  const updateUserProfile = async (data) => {
-    if (!user?.uid) return { success: false, error: 'No user logged in' };
-    
-    try {
-      await setDoc(doc(db, 'users', user.uid), {
-        ...data,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-
-      // Update local userData state
-      setUserData(prev => ({ ...prev, ...data }));
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  };
-
-  // Update specific section of userData locally and in Firestore
-  const updateUserData = async (section, data) => {
-    if (!user?.uid) return { success: false, error: 'No user logged in' };
-    
-    try {
-      await setDoc(doc(db, 'users', user.uid), {
-        [section]: data,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-
-      // Update local userData state
-      setUserData(prev => ({ ...prev, [section]: data }));
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  };
-
-  // Save screen-specific data to Firestore
-  const saveScreenData = async (screenName, data) => {
-    if (!user?.uid) return { success: false, error: 'No user logged in' };
-    
-    try {
-      await setDoc(doc(db, 'users', user.uid, 'screens', screenName), {
-        ...data,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  };
-
-  // Forget password
+  /* -------------------- PASSWORD RESET -------------------- */
   const forgetPassword = async (email) => {
     try {
       await sendPasswordResetEmail(auth, email);
       return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  };
-  // Get screen-specific data from Firestore
-  const getScreenData = async (screenName) => {
-    if (!user?.uid) return { success: false, error: 'No user logged in' };
-    
-    try {
-      const docSnap = await getDoc(doc(db, 'users', user.uid, 'screens', screenName));
-      if (docSnap.exists()) {
-        return { success: true, data: docSnap.data() };
-      }
-      return { success: true, data: null };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  };
-
-  // Save notification to user's notifications list
-  const saveNotification = async (notification) => {
-    if (!user?.uid) return { success: false, error: 'No user logged in' };
-    
-    try {
-      // Add notification with timestamp and ID
-      const newNotification = {
-        id: Date.now().toString(),
-        timestamp: new Date().toISOString(),
-        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        ...notification
-      };
-
-      // Get current notifications
-      const currentNotifications = userData?.notifications || [];
-      const updatedNotifications = [newNotification, ...currentNotifications].slice(0, 50); // Keep last 50
-
-      // Update Firestore
-      await setDoc(doc(db, 'users', user.uid), {
-        notifications: updatedNotifications,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-
-      // Update local state
-      setUserData(prev => ({ ...prev, notifications: updatedNotifications }));
-      return { success: true };
-    } catch (error) {
-      console.log('Error saving notification:', error);
-      return { success: false, error: error.message };
+    } catch (e) {
+      return { success: false, error: e.message };
     }
   };
 
@@ -297,26 +221,13 @@ export const AuthProvider = ({ children }) => {
       signUp,
       signOut,
       signInWithGoogle,
-      updateUserProfile,
-      updateUserData,
-      refreshUserData,
+      linkGoogleProvider,
       forgetPassword,
-      saveScreenData,
-      getScreenData,
-      saveNotification,
-      completeOnboarding,
+      completeOnboarding
     }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
-export default useAuth;
+export const useAuth = () => useContext(AuthContext);

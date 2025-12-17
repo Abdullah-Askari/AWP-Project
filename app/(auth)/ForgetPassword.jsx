@@ -1,23 +1,37 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import useAuth from '../../context/useAuth';
+import { useAuth } from '../../context/useAuth';
 import { useTheme } from '../../context/useTheme';
 
 const ForgetPassword = () => {
   const { theme } = useTheme();
   const router = useRouter();
   const { forgetPassword } = useAuth();
-  const emailRef = useRef();
+  const emailRef = useRef('');
+  const [sending, setSending] = useState(false);
 
   const handleForgetPassword = async () => {
-    const email=emailRef?.current?.trim();
-    if(!email){
+    const email = (emailRef.current || '').trim().toLowerCase();
+    if (!email) {
       alert('Please enter your email address');
       return;
     }
-    await forgetPassword(email);
+    try {
+      setSending(true);
+      const res = await forgetPassword(email);
+      setSending(false);
+      if (res?.success) {
+        alert('Password reset link sent. Check your email.');
+        router.back();
+      } else {
+        alert(res?.error || 'Failed to send reset email');
+      }
+    } catch (e) {
+      setSending(false);
+      alert(e?.message || 'Failed to send reset email');
+    }
   };
 
   return (
@@ -62,11 +76,11 @@ const ForgetPassword = () => {
         <TouchableOpacity
         activeOpacity={0.7}
           className="mt-6 py-4 rounded-lg items-center"
-          style={{ backgroundColor: theme.primary }}
-          onPress={handleForgetPassword}
+          style={{ backgroundColor: theme.primary, opacity: sending ? 0.7 : 1 }}
+          onPress={sending ? undefined : handleForgetPassword}
         >
           <Text className="text-lg font-semibold" style={{ color: theme.textInverse }}>
-            Send Reset Link
+            {sending ? 'Sending…' : 'Send Reset Link'}
           </Text>
         </TouchableOpacity>
         </View>
