@@ -10,7 +10,8 @@ export const configureGoogleSignIn = () => {
 export const signInWithGoogle = async () => {
   try {
     await GoogleSignin.hasPlayServices();
-    const userInfo = await GoogleSignin.signIn();
+    // Always prompt user to select an account
+    const userInfo = await GoogleSignin.signIn({ prompt: 'select_account' });
     return {
       success: true,
       userInfo: {

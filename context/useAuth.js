@@ -120,57 +120,53 @@ export const AuthProvider = ({ children }) => {
 
   /* -------------------- GOOGLE SIGN IN -------------------- */
   const signInWithGoogle = async () => {
-    try {
-      const googleRes = await nativeGoogleSignIn();
-      if (!googleRes.success) {
-        return { success: false, error: googleRes.error };
-      }
-
-      const { idToken, accessToken } = googleRes.userInfo;
-      const credential = GoogleAuthProvider.credential(idToken, accessToken);
-
-      try {
-        const res = await signInWithCredential(auth, credential);
-        await ensureUserDoc(res.user);
-        return { success: true, user: res.user };
-      } catch (err) {
-        if (err.code === 'auth/account-exists-with-different-credential') {
-          const email = err.customData?.email;
-          const methods = await fetchSignInMethodsForEmail(auth, email);
-
-          if (methods.includes('password')) {
-            return {
-              success: false,
-              code: 'ACCOUNT_EXISTS',
-              email,
-              error: 'Login with email/password first to link Google'
-            };
-          }
-        }
-        throw err;
-      }
-    } catch (e) {
-      return { success: false, error: e.message };
+  try {
+    const googleRes = await nativeGoogleSignIn();
+    if (!googleRes.success) {
+      return { success: false, error: googleRes.error };
     }
-  };
+
+    const { idToken, accessToken, user } = googleRes.userInfo;
+    const email = user.email;
+
+    const methods = await fetchSignInMethodsForEmail(auth, email);
+
+    const credential = GoogleAuthProvider.credential(idToken, accessToken);
+
+    // Case 1: Email/password account already exists
+    if (methods.includes('password')) {
+      return {
+        success: false,
+        code: 'LINK_REQUIRED',
+        email,
+        error: 'Login with email/password first to link Google.'
+      };
+    }
+
+    // Case 2: Safe to sign in with Google
+    const res = await signInWithCredential(auth, credential);
+    await ensureUserDoc(res.user);
+    return { success: true, user: res.user };
+
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+};
+
 
   /* -------------------- LINK GOOGLE -------------------- */
   const linkGoogleProvider = async (email, password) => {
-    try {
-      const emailRes = await signInWithEmailAndPassword(auth, email, password);
+  const emailRes = await signInWithEmailAndPassword(auth, email, password);
+  const googleRes = await nativeGoogleSignIn();
 
-      const googleRes = await nativeGoogleSignIn();
-      if (!googleRes.success) throw new Error('Google sign-in cancelled');
+  const credential = GoogleAuthProvider.credential(
+    googleRes.userInfo.idToken,
+    googleRes.userInfo.accessToken
+  );
 
-      const { idToken, accessToken } = googleRes.userInfo;
-      const credential = GoogleAuthProvider.credential(idToken, accessToken);
+  await linkWithCredential(emailRes.user, credential);
+};
 
-      await linkWithCredential(emailRes.user, credential);
-      return { success: true };
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  };
 
   /* -------------------- FIRESTORE ENSURE -------------------- */
   const ensureUserDoc = async (firebaseUser) => {
