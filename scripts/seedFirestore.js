@@ -17,7 +17,7 @@ const db = getFirestore(app);
 
 // Parse command line arguments
 const args = process.argv.slice(2);
-let USER_ID = "M8wKDokLsjRoAzfoHhECHZdcbbm2"; // Default user ID
+let USER_ID = "LIVKuCEEkKVJjxfYvUUoOVswHWu2"; // Default user ID
 let USER_EMAIL = ""; // Will be set from args or empty
 
 // Parse arguments
