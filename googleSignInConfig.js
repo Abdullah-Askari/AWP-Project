@@ -4,14 +4,21 @@ export const configureGoogleSignIn = () => {
   GoogleSignin.configure({
     webClientId: '339496645684-7egbq5ig5a8mrm208koeihhur0fl6efd.apps.googleusercontent.com',
     scopes: ['profile', 'email'],
+    forceCodeForRefreshToken: true,
   });
 };
 
 export const signInWithGoogle = async () => {
   try {
     await GoogleSignin.hasPlayServices();
-    // Always prompt user to select an account
-    const userInfo = await GoogleSignin.signIn({ prompt: 'select_account' });
+
+    await GoogleSignin.signOut();
+    await GoogleSignin.revokeAccess();
+
+    const userInfo = await GoogleSignin.signIn({
+      prompt: 'select_account',
+    });
+
     return {
       success: true,
       userInfo: {
@@ -31,6 +38,7 @@ export const signInWithGoogle = async () => {
 
 export const signOutGoogle = async () => {
   try {
+    await GoogleSignin.revokeAccess();
     await GoogleSignin.signOut();
     return { success: true };
   } catch (error) {
