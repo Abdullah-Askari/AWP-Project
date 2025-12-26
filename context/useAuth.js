@@ -1,33 +1,33 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-    createUserWithEmailAndPassword,
-    fetchSignInMethodsForEmail,
-    signOut as firebaseSignOut,
-    GoogleAuthProvider,
-    linkWithCredential,
-    onAuthStateChanged,
-    sendPasswordResetEmail,
-    signInWithCredential,
-    signInWithEmailAndPassword
+  createUserWithEmailAndPassword,
+  fetchSignInMethodsForEmail,
+  signOut as firebaseSignOut,
+  GoogleAuthProvider,
+  linkWithCredential,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  signInWithCredential,
+  signInWithEmailAndPassword
 } from 'firebase/auth';
 import {
-    doc,
-    getDoc,
-    serverTimestamp,
-    setDoc
+  doc,
+  getDoc,
+  serverTimestamp,
+  setDoc
 } from 'firebase/firestore';
 import {
-    createContext,
-    useContext,
-    useEffect,
-    useRef,
-    useState
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState
 } from 'react';
 
 import { auth, db } from '../firebaseConfig';
 import {
-    configureGoogleSignIn,
-    signInWithGoogle as nativeGoogleSignIn
+  configureGoogleSignIn,
+  signInWithGoogle as nativeGoogleSignIn
 } from '../googleSignInConfig';
 
 const AuthContext = createContext({});
@@ -120,52 +120,52 @@ export const AuthProvider = ({ children }) => {
 
   /* -------------------- GOOGLE SIGN IN -------------------- */
   const signInWithGoogle = async () => {
-  try {
-    const googleRes = await nativeGoogleSignIn();
-    if (!googleRes.success) {
-      return { success: false, error: googleRes.error };
+    try {
+      const googleRes = await nativeGoogleSignIn();
+      if (!googleRes.success) {
+        return { success: false, error: googleRes.error };
+      }
+
+      const { idToken, accessToken, user } = googleRes.userInfo;
+      const email = user.email;
+
+      const methods = await fetchSignInMethodsForEmail(auth, email);
+
+      const credential = GoogleAuthProvider.credential(idToken, accessToken);
+
+      // Case 1: Email/password account already exists
+      if (methods.includes('password')) {
+        return {
+          success: false,
+          code: 'LINK_REQUIRED',
+          email,
+          error: 'Login with email/password first to link Google.'
+        };
+      }
+
+      // Case 2: Safe to sign in with Google
+      const res = await signInWithCredential(auth, credential);
+      await ensureUserDoc(res.user);
+      return { success: true, user: res.user };
+
+    } catch (e) {
+      return { success: false, error: e.message };
     }
-
-    const { idToken, accessToken, user } = googleRes.userInfo;
-    const email = user.email;
-
-    const methods = await fetchSignInMethodsForEmail(auth, email);
-
-    const credential = GoogleAuthProvider.credential(idToken, accessToken);
-
-    // Case 1: Email/password account already exists
-    if (methods.includes('password')) {
-      return {
-        success: false,
-        code: 'LINK_REQUIRED',
-        email,
-        error: 'Login with email/password first to link Google.'
-      };
-    }
-
-    // Case 2: Safe to sign in with Google
-    const res = await signInWithCredential(auth, credential);
-    await ensureUserDoc(res.user);
-    return { success: true, user: res.user };
-
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
-};
+  };
 
 
   /* -------------------- LINK GOOGLE -------------------- */
   const linkGoogleProvider = async (email, password) => {
-  const emailRes = await signInWithEmailAndPassword(auth, email, password);
-  const googleRes = await nativeGoogleSignIn();
+    const emailRes = await signInWithEmailAndPassword(auth, email, password);
+    const googleRes = await nativeGoogleSignIn();
 
-  const credential = GoogleAuthProvider.credential(
-    googleRes.userInfo.idToken,
-    googleRes.userInfo.accessToken
-  );
+    const credential = GoogleAuthProvider.credential(
+      googleRes.userInfo.idToken,
+      googleRes.userInfo.accessToken
+    );
 
-  await linkWithCredential(emailRes.user, credential);
-};
+    await linkWithCredential(emailRes.user, credential);
+  };
 
 
   /* -------------------- FIRESTORE ENSURE -------------------- */
@@ -219,7 +219,8 @@ export const AuthProvider = ({ children }) => {
       signInWithGoogle,
       linkGoogleProvider,
       forgetPassword,
-      completeOnboarding
+      completeOnboarding,
+      updateUserProfile: (data) => setUserData(prev => ({ ...prev, ...data }))
     }}>
       {children}
     </AuthContext.Provider>

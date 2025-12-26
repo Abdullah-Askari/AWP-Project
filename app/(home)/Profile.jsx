@@ -136,7 +136,13 @@ const Profile = () => {
     try {
       const { url } = await uploadToCloudinary(imageUri);
 
-      // Update profile with new picture URL
+      // Update Firestore first
+      await updateProfile(user.uid, {
+        ...profileData,
+        profilePicture: url
+      });
+
+      // Update local state
       await updateUserProfile({
         profile: {
           ...profileData,
@@ -169,11 +175,11 @@ const Profile = () => {
     }
 
     const editedProfile = {
-      name: nameRef.current,
-      email: emailRef.current,
-      address: addressRef.current,
-      dob: dobRef.current,
-      profilePicture: profileData.profilePicture
+      name: nameRef.current || '',
+      email: emailRef.current || '',
+      address: addressRef.current || '',
+      dob: dobRef.current || '',
+      profilePicture: profileData.profilePicture || ''
     };
 
     try {

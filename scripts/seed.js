@@ -17,7 +17,7 @@ const db = getFirestore(app);
 
 // CLI args
 const args = process.argv.slice(2);
-let USER_ID = "jTX8dw1iTUU4LgXyS9RcGxVZ5zf1";
+let USER_ID = "xFawukKB3daO3JIScrpzcbbRKww1";
 let USER_EMAIL = "";
 
 for (let i = 0; i < args.length; i++) {
