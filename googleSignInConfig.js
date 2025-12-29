@@ -4,13 +4,24 @@ export const configureGoogleSignIn = () => {
   GoogleSignin.configure({
     webClientId: '339496645684-7egbq5ig5a8mrm208koeihhur0fl6efd.apps.googleusercontent.com',
     scopes: ['profile', 'email'],
+    forceCodeForRefreshToken: true,
   });
 };
 
 export const signInWithGoogle = async () => {
   try {
     await GoogleSignin.hasPlayServices();
-    const userInfo = await GoogleSignin.signIn();
+
+    try{
+      await GoogleSignin.signOut();
+    } catch (error) {
+      console.log('Google Sign-Out error during sign-in:', error);
+    }
+
+    const userInfo = await GoogleSignin.signIn({
+      prompt: 'select_account',
+    });
+
     return {
       success: true,
       userInfo: {
@@ -30,6 +41,7 @@ export const signInWithGoogle = async () => {
 
 export const signOutGoogle = async () => {
   try {
+    await GoogleSignin.revokeAccess();
     await GoogleSignin.signOut();
     return { success: true };
   } catch (error) {
