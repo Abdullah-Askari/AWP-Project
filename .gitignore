@@ -42,6 +42,9 @@ app-example
 /ios
 
 
+#scripts
+scripts/
+
 # project config (secrets or local env)
 firebaseConfig.js
 googleSignInConfig.js

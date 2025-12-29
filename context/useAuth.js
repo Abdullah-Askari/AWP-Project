@@ -96,7 +96,19 @@ export const AuthProvider = ({ children }) => {
       const res = await signInWithEmailAndPassword(auth, email, password);
       return { success: true, user: res.user };
     } catch (e) {
-      return { success: false, error: e.message };
+      let errorMessage = "Registration failed. Please try again.";
+      if (e.code === 'auth/email-already-in-use') {
+        errorMessage = 'The email address is already in use by another account.';
+      } else if (e.code === 'auth/invalid-email') {
+        errorMessage = 'The email address is not valid.';
+      } else if (e.code === 'auth/weak-password') {
+        errorMessage = 'The password is too weak. Please choose a stronger password.';
+      } else if (e.code?.includes('permission-denied')) {
+        errorMessage = 'Permission denied. Please check Firestore rules.';
+      } else if (e.code?.includes('not-found')) {
+        errorMessage = 'Database path not found. Please check collection path.';
+      }
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -133,7 +145,6 @@ export const AuthProvider = ({ children }) => {
 
       const credential = GoogleAuthProvider.credential(idToken, accessToken);
 
-      // Case 1: Email/password account already exists
       if (methods.includes('password')) {
         return {
           success: false,
@@ -143,7 +154,7 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
-      // Case 2: Safe to sign in with Google
+
       const res = await signInWithCredential(auth, credential);
       await ensureUserDoc(res.user);
       return { success: true, user: res.user };
