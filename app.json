@@ -3,7 +3,7 @@
     "name": "UPortal",
     "slug": "UcpPortalClone",
     "version": "1.0.0",
-    "orientation": "default",
+    "orientation": "portrait",
     "icon": "./assets/images/App_Icon.png",
     "scheme": "ucpportalclone",
     "userInterfaceStyle": "automatic",
@@ -36,7 +36,7 @@
           "icon": "./assets/images/App_Icon.png",
           "color": "#ffffff",
           "sounds": [
-            "./assets/notification-sound.mp3"
+            "./assets/notificationsound.mp3"
           ]
         }
       ],
@@ -53,7 +53,6 @@
         }
       ],
       "expo-web-browser"
-
     ],
     "experiments": {
       "typedRoutes": true
