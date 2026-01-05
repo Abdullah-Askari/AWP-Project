@@ -6,12 +6,12 @@ import { getStorage } from 'firebase/storage';
 
 // Web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDD4V0vLy5PRoI6nSsHJEyN0Z3CdW0Gu_Q",
-  authDomain: "ucpportalclone-b264a.firebaseapp.com",
-  projectId: "ucpportalclone-b264a",
-  storageBucket: "ucpportalclone-b264a.firebasestorage.app",
-  messagingSenderId: "339496645684",
-  appId: "1:339496645684:android:916e98b95f1f4d6df54661",
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID,
 };
 
 // Initialize Firebase app

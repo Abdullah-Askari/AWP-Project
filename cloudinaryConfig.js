@@ -1,7 +1,7 @@
 
 export const CLOUDINARY_CONFIG = {
-  cloudName: 'dgmjolhbj',
-  uploadPreset: 'dgmjolhbj',
+  cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+  uploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET,
 };
 
 // Upload image to Cloudinary
