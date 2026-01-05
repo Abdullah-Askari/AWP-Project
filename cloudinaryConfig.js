@@ -1,19 +1,20 @@
+import Constants from 'expo-constants';
 
 export const CLOUDINARY_CONFIG = {
-  cloudName: process.env.CLOUDINARY_CLOUD_NAME,
-  uploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET,
+  cloudName: Constants.expoConfig?.extra?.cloudinaryCloudName,
+  uploadPreset: Constants.expoConfig?.extra?.cloudinaryUploadPreset,
 };
 
 // Upload image to Cloudinary
 export const uploadToCloudinary = async (imageUri) => {
   const { cloudName, uploadPreset } = CLOUDINARY_CONFIG;
-  
+
   if (cloudName === 'YOUR_CLOUD_NAME' || uploadPreset === 'YOUR_UPLOAD_PRESET') {
     throw new Error('Please configure your Cloudinary credentials in cloudinaryConfig.js');
   }
 
   const formData = new FormData();
-  
+
   // Get file extension
   const uriParts = imageUri.split('.');
   const fileType = uriParts[uriParts.length - 1];
@@ -40,7 +41,7 @@ export const uploadToCloudinary = async (imageUri) => {
     );
 
     const data = await response.json();
-    
+
     if (data.error) {
       throw new Error(data.error.message);
     }

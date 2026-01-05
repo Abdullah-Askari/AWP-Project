@@ -1,8 +1,9 @@
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import Constants from 'expo-constants';
 
 export const configureGoogleSignIn = () => {
   GoogleSignin.configure({
-    webClientId: process.env.WEB_CLIENT_ID,
+    webClientId: Constants.expoConfig?.extra?.webClientId,
     scopes: ['profile', 'email'],
     forceCodeForRefreshToken: true,
   });
@@ -12,7 +13,7 @@ export const signInWithGoogle = async () => {
   try {
     await GoogleSignin.hasPlayServices();
 
-    try{
+    try {
       await GoogleSignin.signOut();
     } catch (error) {
       console.log('Google Sign-Out error during sign-in:', error);
