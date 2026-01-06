@@ -1,0 +1,9 @@
+// Cloudinary Configuration Template
+// Copy this file to cloudinaryConfig.js and fill in your actual values
+
+const cloudinaryConfig = {
+  cloudName: "YOUR_CLOUDINARY_CLOUD_NAME",
+  uploadPreset: "YOUR_UPLOAD_PRESET"
+};
+
+export default cloudinaryConfig;

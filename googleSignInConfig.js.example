@@ -1,0 +1,8 @@
+// Google Sign-In Configuration Template
+// Copy this file to googleSignInConfig.js and fill in your actual values
+
+const googleSignInConfig = {
+  webClientId: "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com"
+};
+
+export default googleSignInConfig;
